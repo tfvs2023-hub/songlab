@@ -1,4 +1,4 @@
-import { signInWithGoogle, logout, auth } from './firebase';
+import { signInWithGoogle, logout, auth, signInWithKakao } from './firebase';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import React, { useState, useRef, useEffect } from 'react';
 import { Mic, Upload, Play, Youtube, Sparkles, Volume2, AlertCircle } from 'lucide-react';
@@ -234,34 +234,42 @@ const analyzeAudioFile = async (audioFile) => {
     </div>
   );
 
-  // 로그인 페이지
-  const LoginPage = () => (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="bg-white p-8 rounded-xl shadow-lg max-w-md w-full">
-        <h2 className="text-2xl font-bold text-center mb-6">로그인</h2>
-        <div className="space-y-4">
-          <button 
-            onClick={async () => {
-              try {
-                await signInWithGoogle();
-              } catch (error) {
-                alert('로그인 실패: ' + error.message);
-              }
-            }}
-            className="w-full bg-red-500 text-white py-3 rounded-lg hover:bg-red-600 transition-colors"
-         >
-            구글로 로그인
-          </button>
-          <button 
-            onClick={() => setCurrentStep('record')}
-            className="w-full bg-yellow-400 text-black py-3 rounded-lg hover:bg-yellow-500 transition-colors"
-          >
-            카카오로 로그인
-          </button>
-        </div>
+// 로그인 페이지
+const LoginPage = () => (
+  <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+    <div className="bg-white p-8 rounded-xl shadow-lg max-w-md w-full">
+      <h2 className="text-2xl font-bold text-center mb-6">로그인</h2>
+      <div className="space-y-4">
+        <button 
+          onClick={async () => {
+            try {
+              await signInWithGoogle();
+            } catch (error) {
+              alert('로그인 실패: ' + error.message);
+            }
+          }}
+          className="w-full bg-red-500 text-white py-3 rounded-lg hover:bg-red-600 transition-colors"
+        >
+          구글로 로그인
+        </button>
+        <button 
+          onClick={async () => {
+            try {
+              const result = await signInWithKakao();
+              console.log('카카오 로그인 성공:', result);
+              setCurrentStep('record');
+            } catch (error) {
+              alert('카카오 로그인 실패: ' + error.message);
+            }
+          }}
+          className="w-full bg-yellow-400 text-black py-3 rounded-lg hover:bg-yellow-500 transition-colors"
+        >
+          카카오로 로그인
+        </button>
       </div>
     </div>
-  );
+  </div>
+);
 
   // 녹음/업로드 페이지
   const RecordPage = () => (

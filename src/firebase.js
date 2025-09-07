@@ -31,4 +31,30 @@ export const logout = () => {
   return signOut(auth);
 };
 
+// 카카오 초기화 및 로그인 함수들
+if (typeof window !== 'undefined' && window.Kakao) {
+  window.Kakao.init('2ae9be2d22fc1649379d85aca7b8cd4c');
+}
+
+export const signInWithKakao = () => {
+  return new Promise((resolve, reject) => {
+    window.Kakao.Auth.login({
+      success: function(authObj) {
+        window.Kakao.API.request({
+          url: '/v2/user/me',
+          success: function(response) {
+            resolve(response);
+          },
+          fail: function(error) {
+            reject(error);
+          }
+        });
+      },
+      fail: function(err) {
+        reject(err);
+      }
+    });
+  });
+};
+
 export { auth };
