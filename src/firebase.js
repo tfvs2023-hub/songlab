@@ -31,13 +31,18 @@ export const logout = () => {
   return signOut(auth);
 };
 
-// 카카오 초기화 및 로그인 함수들
-if (typeof window !== 'undefined' && window.Kakao) {
-  window.Kakao.init('2ae9be2d22fc1649379d85aca7b8cd4c');
-}
-
+// 카카오 로그인 함수
 export const signInWithKakao = () => {
   return new Promise((resolve, reject) => {
+    if (!window.Kakao) {
+      reject(new Error('Kakao SDK가 로드되지 않았습니다'));
+      return;
+    }
+    
+    if (!window.Kakao.isInitialized()) {
+      window.Kakao.init('2ae9be2d22fc1649379d85aca7b8cd4c');
+    }
+    
     window.Kakao.Auth.login({
       success: function(authObj) {
         window.Kakao.API.request({
