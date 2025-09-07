@@ -1,50 +1,75 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signOut } from 'firebase/auth';
+import { getAuth, signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
 
+// Firebase 설정 (songlab-v2)
 const firebaseConfig = {
   apiKey: "AIzaSyC7Igb5sDzPeSU19A6b5xazhnj4WufFuG8",
-  authDomain: "songlab-3f884.firebaseapp.com",
-  projectId: "songlab-3f884",
-  storageBucket: "songlab-3f884.firebasestorage.app",
-  messagingSenderId: "268083149803",
-  appId: "1:268083149803:web:2b91e785379b8cd933f7ae"
+  authDomain: "songlab-v2.firebaseapp.com",
+  projectId: "songlab-v2",
+  storageBucket: "songlab-v2.firebasestorage.app",
+  messagingSenderId: "250128010188",
+  appId: "1:250128010188:web:62d0d11aa90501db022b69"
 };
 
 // Firebase 초기화
 const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
+export const auth = getAuth(app);
+
+// Google 로그인
 const googleProvider = new GoogleAuthProvider();
 
-// 구글 로그인 함수
-export const signInWithGoogle = () => {
-  return signInWithRedirect(auth, googleProvider);
+export const signInWithGoogle = async () => {
+  try {
+    const result = await signInWithPopup(auth, googleProvider);
+    return result.user;
+  } catch (error) {
+    console.error('Google 로그인 오류:', error);
+    throw error;
+  }
 };
 
-// 리다이렉트 결과 확인 함수
-export const handleRedirectResult = () => {
-  return getRedirectResult(auth);
-};
-
-// 로그아웃 함수
-export const logout = () => {
-  return signOut(auth);
-};
-
-// 카카오 로그인 함수
+// 카카오 로그인 (수정된 버전)
 export const signInWithKakao = () => {
-  // 카카오 SDK 초기화 확인
-  if (!window.Kakao) {
-    throw new Error('카카오 SDK가 로드되지 않았습니다');
-  }
-  
-  if (!window.Kakao.isInitialized()) {
-    window.Kakao.init('2ae9be2d22fc1649379d85aca7b8cd4c');
-  }
-  
-  // 카카오 로그인 페이지로 리다이렉트
-  window.Kakao.Auth.authorize({
-    redirectUri: 'https://www.songlab.kr'
+  return new Promise((resolve, reject) => {
+    if (!window.Kakao || !window.Kakao.Auth) {
+      reject(new Error('카카오 SDK가 로드되지 않았습니다'));
+      return;
+    }
+
+    try {
+      // 최신 카카오 SDK 방식 - success, fail 콜백 제거
+      window.Kakao.Auth.authorize({
+        redirectUri: window.location.origin
+      });
+      
+      // authorize는 페이지 리다이렉트를 발생시키므로 여기서 resolve
+      resolve();
+    } catch (error) {
+      console.error('카카오 로그인 오류:', error);
+      reject(error);
+    }
   });
 };
 
-export { auth };
+// 로그아웃
+export const logout = async () => {
+  try {
+    // Firebase 로그아웃
+    await signOut(auth);
+    
+    // 카카오 로그아웃
+    if (window.Kakao && window.Kakao.Auth) {
+      window.Kakao.Auth.logout();
+    }
+  } catch (error) {
+    console.error('로그아웃 오류:', error);
+    throw error;
+  }
+};
+
+// 카카오 초기화 (HTML에서 SDK 로드 후 호출)
+export const initKakao = () => {
+  if (window.Kakao && !window.Kakao.isInitialized()) {
+    window.Kakao.init('2ae9be2d22fc1649379d85aca7b8cd4c'); // 카카오 JavaScript 키
+  }
+};
