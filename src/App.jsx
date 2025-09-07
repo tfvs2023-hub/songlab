@@ -20,6 +20,12 @@ const VocalAnalysisPlatform = () => {
   
 // 로그인 상태 확인
 useEffect(() => {
+  // 카카오 SDK 초기화 (맨 앞에 추가)
+  if (window.Kakao && !window.Kakao.isInitialized()) {
+    window.Kakao.init('2ae9be2d22fc1649379d85aca7b8cd4c');
+    console.log('카카오 SDK 초기화 완료');
+  }
+  
   const checkLoginStatus = () => {
     // Firebase 사용자가 있거나 카카오 토큰이 있으면 로그인 상태
     const isFirebaseLoggedIn = !!user;
