@@ -34,17 +34,16 @@ export const logout = () => {
 // 카카오 로그인 함수
 export const signInWithKakao = () => {
   return new Promise((resolve, reject) => {
-    if (!window.Kakao) {
-      reject(new Error('Kakao SDK가 로드되지 않았습니다'));
-      return;
-    }
-    
     if (!window.Kakao.isInitialized()) {
       window.Kakao.init('2ae9be2d22fc1649379d85aca7b8cd4c');
     }
     
-    window.Kakao.Auth.login({
+    // authorize 함수 사용 (SDK 2.x 버전)
+    window.Kakao.Auth.authorize({
+      redirectUri: 'https://www.songlab.kr',
       success: function(authObj) {
+        console.log('카카오 인증 성공:', authObj);
+        // 사용자 정보 가져오기
         window.Kakao.API.request({
           url: '/v2/user/me',
           success: function(response) {
@@ -56,6 +55,7 @@ export const signInWithKakao = () => {
         });
       },
       fail: function(err) {
+        console.log('카카오 인증 실패:', err);
         reject(err);
       }
     });
