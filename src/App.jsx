@@ -1,3 +1,5 @@
+import { signInWithGoogle, logout, auth, signInWithKakao } from './firebase';
+import { useAuthState } from 'react-firebase-hooks/auth';
 import React, { useState, useRef, useEffect } from 'react';
 import { Mic, Upload, Play, Youtube, Sparkles, Volume2, AlertCircle } from 'lucide-react';
 
@@ -10,37 +12,45 @@ const VocalAnalysisPlatform = () => {
   const [adWatched, setAdWatched] = useState(false);
   const [adCountdown, setAdCountdown] = useState(15);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [user, setUser] = useState(null); // 누락된 user 상태 추가
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(null); // 추가된 user 상태
+  
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const timerRef = useRef(null);
   
-  // 가상 Firebase 함수들 (실제 구현 시 firebase.js에서 import)
-  const signInWithGoogle = async () => {
-    console.log('Google 로그인 시뮬레이션');
-    setUser({ email: 'test@gmail.com', displayName: 'Test User' });
-    return Promise.resolve();
-  };
-
-  const signInWithKakao = async () => {
-    console.log('Kakao 로그인 시뮬레이션');
-    setUser({ email: 'test@kakao.com', displayName: 'Kakao User' });
-    return Promise.resolve();
-  };
-
-  // 로그인 상태 확인 (의존성 배열 수정)
+  // 로그인 상태 확인
   useEffect(() => {
-    // 데모용 가상 로그인 체크
-    const checkLoginStatus = () => {
-      // 실제로는 Firebase auth 상태 확인
-      if (user && currentStep === 'login') {
+    // Firebase 로그인 상태 확인
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        setUser(user);
+        if (currentStep === 'login') {
+          setCurrentStep('record');
+        }
+      } else {
+        setUser(null);
+      }
+    });
+
+    // 카카오 로그인 상태 확인 (페이지 로드시)
+    if (window.Kakao && window.Kakao.Auth && window.Kakao.Auth.getAccessToken()) {
+      // 카카오 로그인 상태면 record 단계로 이동
+      if (currentStep === 'landing' || currentStep === 'login') {
         setCurrentStep('record');
       }
-    };
+    }
 
-    checkLoginStatus();
-  }, [user, currentStep]); // 의존성 배열에 currentStep 추가
+    return () => unsubscribe();
+  }, [currentStep]);
+
+  // 로그인 버튼 클릭시 상태 확인
+  const handleLoginClick = () => {
+    if (user || (window.Kakao && window.Kakao.Auth && window.Kakao.Auth.getAccessToken())) {
+      setCurrentStep('record');
+    } else {
+      setCurrentStep('login');
+    }
+  };
   
   // 키워드 매핑
   const keywordMapping = {
@@ -50,39 +60,72 @@ const VocalAnalysisPlatform = () => {
     power: ['아포지오 호흡', '호흡 근육 훈련', '호흡 조절', '호흡법 발성']
   };
 
-  // 실제 음성 분석 API 호출
-  const analyzeAudioFile = async (audioFile) => {
-    console.log('분석 시작 - 파일:', audioFile);
-    setIsAnalyzing(true);
-    
-    try {
-      // 데모용 가상 API 호출
-      await new Promise(resolve => setTimeout(resolve, 2000)); // 2초 대기
-      
-      // 가상의 결과 반환
-      return {
-        scores: {
-          brightness: Math.random() * 200 - 100,
-          thickness: Math.random() * 200 - 100,
-          clarity: Math.random() * 200 - 100,
-          power: Math.random() * 200 - 100
-        },
-        mbti: {
-          typeCode: 'BTCP',
-          typeName: '크리스털 디바',
-          typeIcon: '💎',
-          description: '맑고 투명한 음색을 가진 타입입니다'
-        },
-        success: true,
-        isDemo: true
-      };
-    } catch (error) {
-      console.error('음성 분석 오류:', error);
-      throw error;
-    } finally {
-      setIsAnalyzing(false);
+// 실제 음성 분석 API 호출
+const analyzeAudioFile = async (audioFile) => {
+  console.log('분석 시작 - 파일:', audioFile);
+  setIsAnalyzing(true);
+  
+  try {
+    const formData = new FormData();
+    formData.append('file', audioFile);
+
+    console.log('API 호출 시작 - URL: http://localhost:8001/analyze');
+    // 실제 분석 API 호출 (당신의 Python 서버)
+    const response = await fetch('http://localhost:8001/analyze', {
+      method: 'POST',
+      body: formData
+    });
+
+    console.log('API 응답 상태:', response.status, response.ok);
+
+    if (!response.ok) {
+      throw new Error('분석 서버 오류');
     }
-  };
+
+    const result = await response.json();
+    console.log('분석 결과:', result);
+    
+    if ((result.success || result.status === 'success') && result.mbti) {
+      // -100~100 범위로 점수 변환
+      const normalizedScores = {
+        brightness: (result.mbti.scores.brightness - 50) * 2,
+        thickness: (result.mbti.scores.thickness - 50) * 2,
+        clarity: (result.mbti.scores.clarity - 50) * 2,
+        power: (result.mbti.scores.power - 50) * 2
+      };
+
+      return {
+        scores: normalizedScores,
+        mbti: result.mbti,
+        success: true
+      };
+    } else {
+      throw new Error(result.message || '분석 실패');
+    }
+  } catch (error) {
+    console.error('음성 분석 오류:', error);
+    
+    // 폴백: 가상의 결과 (개발/테스트용)
+    return {
+      scores: {
+        brightness: Math.random() * 200 - 100,
+        thickness: Math.random() * 200 - 100,
+        clarity: Math.random() * 200 - 100,
+        power: Math.random() * 200 - 100
+      },
+      mbti: {
+        typeCode: 'BTCP',
+        typeName: '크리스털 디바',
+        typeIcon: '💎',
+        description: '테스트 결과입니다'
+      },
+      success: true,
+      isDemo: true
+    };
+  } finally {
+    setIsAnalyzing(false);
+  }
+};
 
   // 녹음 시작
   const startRecording = async () => {
@@ -148,7 +191,7 @@ const VocalAnalysisPlatform = () => {
     }
   };
 
-  // 광고 시청 (의존성 배열 수정)
+  // 광고 시청
   useEffect(() => {
     if (currentStep === 'ad' && !adWatched) {
       const countdown = setInterval(() => {
@@ -163,7 +206,7 @@ const VocalAnalysisPlatform = () => {
       }, 1000);
       return () => clearInterval(countdown);
     }
-  }, [currentStep, adWatched]); // 의존성 배열은 그대로 유지
+  }, [currentStep, adWatched]);
 
   // 결과 보기
   const showResults = () => {
@@ -186,15 +229,6 @@ const VocalAnalysisPlatform = () => {
     return areas.reduce((min, current) => 
       current[1] < min[1] ? current : min
     );
-  };
-
-  // 로그인 버튼 클릭 핸들러
-  const handleLoginClick = () => {
-    if (user || (window.Kakao && window.Kakao.Auth && window.Kakao.Auth.getAccessToken())) {
-      setCurrentStep('record');
-    } else {
-      setCurrentStep('login');
-    }
   };
 
   // 랜딩 페이지
@@ -236,42 +270,42 @@ const VocalAnalysisPlatform = () => {
     </div>
   );
 
-  // 로그인 페이지
-  const LoginPage = () => (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="bg-white p-8 rounded-xl shadow-lg max-w-md w-full">
-        <h2 className="text-2xl font-bold text-center mb-6">로그인</h2>
-        <div className="space-y-4">
-          <button 
-            onClick={async () => {
-              try {
-                await signInWithGoogle();
-                setCurrentStep('record');
-              } catch (error) {
-                alert('로그인 실패: ' + error.message);
-              }
-            }}
-            className="w-full bg-red-500 text-white py-3 rounded-lg hover:bg-red-600 transition-colors"
-          >
-            구글로 로그인
-          </button>
-          <button 
-            onClick={async () => {
-              try {
-                await signInWithKakao();
-                setCurrentStep('record');
-              } catch (error) {
-                alert('카카오 로그인 실패: ' + error.message);
-              }
-            }}
-            className="w-full bg-yellow-400 text-black py-3 rounded-lg hover:bg-yellow-500 transition-colors"
-          >
-            카카오로 로그인
-          </button>
-        </div>
+// 로그인 페이지
+const LoginPage = () => (
+  <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+    <div className="bg-white p-8 rounded-xl shadow-lg max-w-md w-full">
+      <h2 className="text-2xl font-bold text-center mb-6">로그인</h2>
+      <div className="space-y-4">
+        <button 
+          onClick={async () => {
+            try {
+              await signInWithGoogle();
+            } catch (error) {
+              alert('로그인 실패: ' + error.message);
+            }
+          }}
+          className="w-full bg-red-500 text-white py-3 rounded-lg hover:bg-red-600 transition-colors"
+        >
+          구글로 로그인
+        </button>
+        <button 
+          onClick={async () => {
+            try {
+              const result = await signInWithKakao();
+              console.log('카카오 로그인 성공:', result);
+              setCurrentStep('record');
+            } catch (error) {
+              alert('카카오 로그인 실패: ' + error.message);
+            }
+          }}
+          className="w-full bg-yellow-400 text-black py-3 rounded-lg hover:bg-yellow-500 transition-colors"
+        >
+          카카오로 로그인
+        </button>
       </div>
     </div>
-  );
+  </div>
+);
 
   // 녹음/업로드 페이지
   const RecordPage = () => (
@@ -404,13 +438,32 @@ const VocalAnalysisPlatform = () => {
 
     // 가상의 유튜브 영상 데이터
     const getRecommendedVideos = () => {
-      const sampleVideos = [
-        { title: '포먼트 조절로 음색 바꾸기', channel: '보컬코치김민수', views: '15만회', duration: '8:32' },
-        { title: '브릿지 완벽 마스터', channel: '보컬트레이너이수진', views: '45만회', duration: '15:20' },
-        { title: '성대 내전 훈련법', channel: '보컬의정석', views: '12만회', duration: '9:45' },
-        { title: '아포지오 호흡법 완전정복', channel: '호흡의달인', views: '67만회', duration: '18:25' }
-      ];
-      return sampleVideos;
+      if (!weakestArea) return [];
+      
+      const sampleVideos = {
+        '포먼트 조절': [
+          { title: '포먼트 조절로 음색 바꾸기', channel: '보컬코치김민수', views: '15만회', duration: '8:32' },
+          { title: '공명 위치 찾는 법', channel: '발성의달인', views: '23만회', duration: '12:15' }
+        ],
+        '성구 전환': [
+          { title: '브릿지 완벽 마스터', channel: '보컬트레이너이수진', views: '45만회', duration: '15:20' },
+          { title: '믹스보이스 기초부터', channel: '노래교실TV', views: '38만회', duration: '22:18' }
+        ],
+        '성대 내전': [
+          { title: '성대 내전 훈련법', channel: '보컬의정석', views: '12만회', duration: '9:45' },
+          { title: '발음 명료하게 하는 법', channel: '딕션마스터', views: '28만회', duration: '14:32' }
+        ],
+        '호흡 조절': [
+          { title: '아포지오 호흡법 완전정복', channel: '호흡의달인', views: '67만회', duration: '18:25' },
+          { title: '호흡근 강화 운동', channel: '보컬피트니스', views: '34만회', duration: '11:40' }
+        ]
+      };
+      
+      const weakness = weakestArea[1] < -50 ? 
+        Object.keys(keywordMapping)[0] : // 가장 첫 번째 키워드 사용
+        weaknessKeywords[0]; // 실제 약점 키워드 사용
+        
+      return sampleVideos[weakness] || [];
     };
 
     return (
