@@ -18,29 +18,76 @@ const VocalAnalysisPlatform = () => {
   const audioChunksRef = useRef([]);
   const timerRef = useRef(null);
   
-  // 로그인 상태 확인 (useAuthState 사용하므로 간소화)
-  useEffect(() => {
-    // Firebase 로그인 상태 자동 확인
-    if (user && (currentStep === 'landing' || currentStep === 'login')) {
-      setCurrentStep('record');
-    }
+// 로그인 상태 확인
+useEffect(() => {
+  const checkLoginStatus = () => {
+    // Firebase 사용자가 있거나 카카오 토큰이 있으면 로그인 상태
+    const isFirebaseLoggedIn = !!user;
+    const isKakaoLoggedIn = window.Kakao && window.Kakao.Auth && !!window.Kakao.Auth.getAccessToken();
+    const isLoggedIn = isFirebaseLoggedIn || isKakaoLoggedIn;
     
-    // 카카오 로그인 상태 확인 (페이지 로드시)
-    if (window.Kakao && window.Kakao.Auth && window.Kakao.Auth.getAccessToken()) {
-      if (currentStep === 'landing' || currentStep === 'login') {
-        setCurrentStep('record');
-      }
-    }
-  }, [user, currentStep]);
-
-  // 로그인 버튼 클릭시 상태 확인
-  const handleLoginClick = () => {
-    if (user || (window.Kakao && window.Kakao.Auth && window.Kakao.Auth.getAccessToken())) {
+    console.log('로그인 상태 체크:', {
+      firebase: isFirebaseLoggedIn,
+      kakao: isKakaoLoggedIn,
+      total: isLoggedIn,
+      currentStep
+    });
+    
+    // 로그인 상태이고 landing/login 페이지에 있다면 record로 이동
+    if (isLoggedIn && (currentStep === 'landing' || currentStep === 'login')) {
+      console.log('record 페이지로 이동');
       setCurrentStep('record');
-    } else {
-      setCurrentStep('login');
     }
   };
+  
+  checkLoginStatus();
+}, [user, currentStep]);
+
+// 로그인 버튼 클릭시 상태 확인  
+const handleLoginClick = () => {
+  const isFirebaseLoggedIn = !!user;
+  const isKakaoLoggedIn = window.Kakao && window.Kakao.Auth && !!window.Kakao.Auth.getAccessToken();
+  
+  if (isFirebaseLoggedIn || isKakaoLoggedIn) {
+    console.log('이미 로그인됨, record로 이동');
+    setCurrentStep('record');
+  } else {
+    console.log('로그인 안됨, login 페이지로 이동');
+    setCurrentStep('login');
+  }
+};
+
+{/* 로그인 상태 표시 */}
+<div className="fixed top-4 left-4 bg-white p-2 rounded-lg shadow-md border z-50">
+  <div className="text-sm">
+    <div className="font-semibold">로그인 상태:</div>
+    {(() => {
+      const isFirebaseLoggedIn = !!user;
+      const isKakaoLoggedIn = window.Kakao && window.Kakao.Auth && !!window.Kakao.Auth.getAccessToken();
+      
+      if (isFirebaseLoggedIn) {
+        return (
+          <div className="text-green-600">
+            ✓ 로그인됨 (Firebase)<br/>
+            {user.email || user.displayName}
+          </div>
+        );
+      } else if (isKakaoLoggedIn) {
+        return (
+          <div className="text-green-600">
+            ✓ 로그인됨 (Kakao)<br/>
+            Kakao User
+          </div>
+        );
+      } else {
+        return <div className="text-red-600">✗ 로그인 안됨</div>;
+      }
+    })()}
+    <div className="text-gray-500 text-xs mt-1">
+      현재 단계: {currentStep}
+    </div>
+  </div>
+</div>
   
   // 키워드 매핑
   const keywordMapping = {
