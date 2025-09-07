@@ -28,7 +28,7 @@ export const signInWithGoogle = async () => {
   }
 };
 
-// 카카오 로그인 (Popup 방식)
+// 카카오 로그인 (SDK 2.x 버전용)
 export const signInWithKakao = () => {
   return new Promise((resolve, reject) => {
     if (!window.Kakao || !window.Kakao.Auth) {
@@ -37,7 +37,7 @@ export const signInWithKakao = () => {
     }
 
     try {
-      window.Kakao.Auth.login({
+      window.Kakao.Auth.loginForm({
         success: function(authObj) {
           console.log('카카오 로그인 성공:', authObj);
           resolve(authObj);
