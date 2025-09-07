@@ -28,7 +28,7 @@ export const signInWithGoogle = async () => {
   }
 };
 
-// 카카오 로그인 (수정된 버전)
+// 카카오 로그인 (Popup 방식)
 export const signInWithKakao = () => {
   return new Promise((resolve, reject) => {
     if (!window.Kakao || !window.Kakao.Auth) {
@@ -37,13 +37,16 @@ export const signInWithKakao = () => {
     }
 
     try {
-      // 최신 카카오 SDK 방식 - success, fail 콜백 제거
-      window.Kakao.Auth.authorize({
-        redirectUri: window.location.origin
+      window.Kakao.Auth.login({
+        success: function(authObj) {
+          console.log('카카오 로그인 성공:', authObj);
+          resolve(authObj);
+        },
+        fail: function(err) {
+          console.error('카카오 로그인 실패:', err);
+          reject(err);
+        }
       });
-      
-      // authorize는 페이지 리다이렉트를 발생시키므로 여기서 resolve
-      resolve();
     } catch (error) {
       console.error('카카오 로그인 오류:', error);
       reject(error);

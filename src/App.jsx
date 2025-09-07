@@ -26,15 +26,8 @@ useEffect(() => {
     console.log('카카오 SDK 초기화 완료');
   }
 
-    // 카카오 로그인 후 리다이렉트 처리 (추가)
-  const urlParams = new URLSearchParams(window.location.search);
-  const code = urlParams.get('code');
-  if (code) {
-    console.log('카카오 로그인 리다이렉트 감지:', code);
-    // URL에서 code 파라미터 제거
-    window.history.replaceState({}, document.title, window.location.pathname);
-  }
-  
+
+
   const checkLoginStatus = () => {
     // Firebase 사용자가 있거나 카카오 토큰이 있으면 로그인 상태
     const isFirebaseLoggedIn = !!user;
