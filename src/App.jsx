@@ -18,30 +18,20 @@ const VocalAnalysisPlatform = () => {
   const audioChunksRef = useRef([]);
   const timerRef = useRef(null);
   
-  // 로그인 상태 확인
+  // 로그인 상태 확인 (useAuthState 사용하므로 간소화)
   useEffect(() => {
-    // Firebase 로그인 상태 확인
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      if (user) {
-        setUser(user);
-        if (currentStep === 'login') {
-          setCurrentStep('record');
-        }
-      } else {
-        setUser(null);
-      }
-    });
-
+    // Firebase 로그인 상태 자동 확인
+    if (user && (currentStep === 'landing' || currentStep === 'login')) {
+      setCurrentStep('record');
+    }
+    
     // 카카오 로그인 상태 확인 (페이지 로드시)
     if (window.Kakao && window.Kakao.Auth && window.Kakao.Auth.getAccessToken()) {
-      // 카카오 로그인 상태면 record 단계로 이동
       if (currentStep === 'landing' || currentStep === 'login') {
         setCurrentStep('record');
       }
     }
-
-    return () => unsubscribe();
-  }, [currentStep]);
+  }, [user, currentStep]);
 
   // 로그인 버튼 클릭시 상태 확인
   const handleLoginClick = () => {
@@ -601,6 +591,24 @@ const LoginPage = () => (
   // 메인 렌더링
   return (
     <div>
+      {/* 로그인 상태 표시 */}
+      <div className="fixed top-4 left-4 bg-white p-2 rounded-lg shadow-md border z-50">
+        <div className="text-sm">
+          <div className="font-semibold">로그인 상태:</div>
+          {user ? (
+            <div className="text-green-600">
+              ✓ 로그인됨<br/>
+              {user.email || user.displayName || 'User'}
+            </div>
+          ) : (
+            <div className="text-red-600">✗ 로그인 안됨</div>
+          )}
+          <div className="text-gray-500 text-xs mt-1">
+            현재 단계: {currentStep}
+          </div>
+        </div>
+      </div>
+
       {currentStep === 'landing' && <LandingPage />}
       {currentStep === 'login' && <LoginPage />}
       {currentStep === 'record' && <RecordPage />}
