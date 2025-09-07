@@ -10,7 +10,6 @@ const firebaseConfig = {
   appId: "1:268083149803:web:2b91e785379b8cd933f7ae"
 };
 
-
 // Firebase 초기화
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -33,24 +32,18 @@ export const logout = () => {
 
 // 카카오 로그인 함수
 export const signInWithKakao = () => {
-  return new Promise((resolve, reject) => {
-    if (!window.Kakao.isInitialized()) {
-      window.Kakao.init('2ae9be2d22fc1649379d85aca7b8cd4c');
-    }
-    
-    // SDK 2.x 방식으로 수정
-    window.Kakao.Auth.authorize({
-      redirectUri: 'https://www.songlab.kr'
-    }).then(function(authObj) {
-      // 성공 시 사용자 정보 가져오기
-      return window.Kakao.API.request({
-        url: '/v2/user/me'
-      });
-    }).then(function(response) {
-      resolve(response);
-    }).catch(function(err) {
-      reject(err);
-    });
+  // 카카오 SDK 초기화 확인
+  if (!window.Kakao) {
+    throw new Error('카카오 SDK가 로드되지 않았습니다');
+  }
+  
+  if (!window.Kakao.isInitialized()) {
+    window.Kakao.init('2ae9be2d22fc1649379d85aca7b8cd4c');
+  }
+  
+  // 카카오 로그인 페이지로 리다이렉트
+  window.Kakao.Auth.authorize({
+    redirectUri: 'https://www.songlab.kr'
   });
 };
 
