@@ -38,26 +38,18 @@ export const signInWithKakao = () => {
       window.Kakao.init('2ae9be2d22fc1649379d85aca7b8cd4c');
     }
     
-    // authorize 함수 사용 (SDK 2.x 버전)
+    // SDK 2.x 방식으로 수정
     window.Kakao.Auth.authorize({
-      redirectUri: 'https://www.songlab.kr',
-      success: function(authObj) {
-        console.log('카카오 인증 성공:', authObj);
-        // 사용자 정보 가져오기
-        window.Kakao.API.request({
-          url: '/v2/user/me',
-          success: function(response) {
-            resolve(response);
-          },
-          fail: function(error) {
-            reject(error);
-          }
-        });
-      },
-      fail: function(err) {
-        console.log('카카오 인증 실패:', err);
-        reject(err);
-      }
+      redirectUri: 'https://www.songlab.kr'
+    }).then(function(authObj) {
+      // 성공 시 사용자 정보 가져오기
+      return window.Kakao.API.request({
+        url: '/v2/user/me'
+      });
+    }).then(function(response) {
+      resolve(response);
+    }).catch(function(err) {
+      reject(err);
     });
   });
 };
