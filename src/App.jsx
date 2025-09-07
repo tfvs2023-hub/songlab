@@ -11,7 +11,7 @@ const VocalAnalysisPlatform = () => {
   const [adCountdown, setAdCountdown] = useState(15);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [user, setUser] = useState(null); // 누락된 user 상태 추가
-  
+  const [user, setUser] = useState(null);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const timerRef = useRef(null);
