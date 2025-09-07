@@ -15,7 +15,49 @@ const VocalAnalysisPlatform = () => {
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const timerRef = useRef(null);
+  
+  // 로그인 상태 확인
+  useEffect(() => {
+    // Firebase 로그인 상태 확인
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        setUser(user);
+        if (currentStep === 'login') {
+          setCurrentStep('record');
+        }
+      } else {
+        setUser(null);
+      }
+    });
 
+    // 카카오 로그인 상태 확인 (페이지 로드시)
+    if (window.Kakao && window.Kakao.Auth && window.Kakao.Auth.getAccessToken()) {
+      // 카카오 로그인 상태면 record 단계로 이동
+      if (currentStep === 'landing' || currentStep === 'login') {
+        setCurrentStep('record');
+      }
+    }
+
+    return () => unsubscribe();
+  }, []);
+
+  // 로그인 버튼 클릭시 상태 확인
+  const handleLoginClick = () => {
+    if (user || (window.Kakao && window.Kakao.Auth && window.Kakao.Auth.getAccessToken())) {
+      setCurrentStep('record');
+    } else {
+      setCurrentStep('login');
+    }
+  };
+
+  // 랜딩페이지에서 버튼 수정
+  <button 
+    onClick={handleLoginClick}
+    className="bg-white text-purple-600 px-8 py-4 rounded-full font-bold text-lg hover:bg-gray-100 transition-all transform hover:scale-105"
+  >
+    무료로 테스트해보기
+  </button>
+  
   // 키워드 매핑 (당신이 제공한 매핑)
   const keywordMapping = {
     brightness: ['포먼트 조절', '공명 훈련', '톤 밝기', '성구 공명'],
