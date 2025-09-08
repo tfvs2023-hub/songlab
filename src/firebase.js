@@ -35,13 +35,20 @@ export const initializeKakao = () => {
   }
 };
 
-// 카카오 로그인 상태 확인
+// 카카오 로그인 상태 확인 (더 단순하게)
 export const getKakaoLoginStatus = () => {
-  if (!window.Kakao?.Auth) return false;
-  
-  const accessToken = window.Kakao.Auth.getAccessToken();
-  console.log('카카오 토큰 확인:', accessToken);
-  return !!accessToken;
+  try {
+    if (!window.Kakao || !window.Kakao.Auth) {
+      return false;
+    }
+    
+    const accessToken = window.Kakao.Auth.getAccessToken();
+    console.log('카카오 토큰:', accessToken);
+    return !!accessToken;
+  } catch (error) {
+    console.error('카카오 상태 확인 오류:', error);
+    return false;
+  }
 };
 
 // 카카오 로그인 실행
