@@ -1,7 +1,7 @@
 {
   "functions": {
     "songlab_backend/main.py": {
-      "runtime": "python3.9"
+      "runtime": "@vercel/python"
     }
   },
   "routes": [
