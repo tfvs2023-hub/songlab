@@ -34,19 +34,30 @@ const VocalAnalysisPlatform = () => {
     return hasFirebaseUser || hasKakaoToken;
   };
 
-  // 앱 초기화
-  useEffect(() => {
-    // 카카오 초기화
-    initializeKakao();
+// 앱 초기화
+useEffect(() => {
+  // 카카오 초기화
+  initializeKakao();
+  
+  // 카카오 로그인 완료 처리 (이 부분을 추가)
+  const urlParams = new URLSearchParams(window.location.search);
+  const code = urlParams.get('code');
+  
+  if (code) {
+    console.log('카카오 인증 코드 감지:', code);
     
-    // URL에서 카카오 로그인 완료 코드 제거 (깔끔하게)
-    const url = new URL(window.location);
-    if (url.searchParams.has('code') || url.searchParams.has('state')) {
-      url.searchParams.delete('code');
-      url.searchParams.delete('state');
-      window.history.replaceState({}, '', url.pathname);
-    }
-  }, []);
+    // 카카오 토큰 요청
+    window.Kakao.Auth.setAccessTokenByAuthCode(code);
+  }
+  
+  // URL에서 카카오 로그인 완료 코드 제거 (깔끔하게)
+  const url = new URL(window.location);
+  if (url.searchParams.has('code') || url.searchParams.has('state')) {
+    url.searchParams.delete('code');
+    url.searchParams.delete('state');
+    window.history.replaceState({}, '', url.pathname);
+  }
+}, []);
 
   // 로그인 상태 변화 감지
   useEffect(() => {
