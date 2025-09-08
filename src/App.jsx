@@ -7,6 +7,7 @@ import {
   signInWithKakao, 
   initializeKakao, 
   getKakaoLoginStatus,
+  setKakaoStatusUpdateCallback,
   logout 
 } from './firebase';
 
@@ -19,6 +20,7 @@ const VocalAnalysisPlatform = () => {
   const [adWatched, setAdWatched] = useState(false);
   const [adCountdown, setAdCountdown] = useState(15);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [forceUpdate, setForceUpdate] = useState(0);
   
   const [firebaseUser] = useAuthState(auth);
   
@@ -26,32 +28,35 @@ const VocalAnalysisPlatform = () => {
   const audioChunksRef = useRef([]);
   const timerRef = useRef(null);
 
-  // 로그인 상태 확인 함수
   const isLoggedIn = () => {
     return !!firebaseUser || getKakaoLoginStatus();
   };
 
-  // 카카오 초기화만 수행
+  const forceStatusUpdate = () => {
+    setForceUpdate(prev => prev + 1);
+  };
+
   useEffect(() => {
     initializeKakao();
+    setKakaoStatusUpdateCallback(forceStatusUpdate);
   }, []);
 
-  // 로그인 상태 변화 감지
   useEffect(() => {
+    const loginStatus = isLoggedIn();
     console.log('로그인 상태 체크:', {
       firebase: !!firebaseUser,
       kakao: getKakaoLoginStatus(),
-      loggedIn: isLoggedIn(),
-      currentStep
+      loggedIn: loginStatus,
+      currentStep,
+      forceUpdate
     });
 
-    if (isLoggedIn() && (currentStep === 'landing' || currentStep === 'login')) {
+    if (loginStatus && (currentStep === 'landing' || currentStep === 'login')) {
       console.log('로그인됨 - record 페이지로 이동');
       setCurrentStep('record');
     }
-  }, [firebaseUser, currentStep]);
+  }, [firebaseUser, currentStep, forceUpdate]);
 
-  // 로그인 버튼 클릭
   const handleLoginClick = () => {
     if (isLoggedIn()) {
       setCurrentStep('record');
@@ -60,7 +65,45 @@ const VocalAnalysisPlatform = () => {
     }
   };
 
-  // 키워드 매핑
+  const handleGoogleLogin = async () => {
+    try {
+      await signInWithGoogle();
+      console.log('구글 로그인 완료');
+    } catch (error) {
+      alert('구글 로그인 실패: ' + error.message);
+    }
+  };
+
+  const handleKakaoLogin = async () => {
+    try {
+      await signInWithKakao();
+      console.log('카카오 로그인 완료');
+      
+      setTimeout(() => {
+        forceStatusUpdate();
+        if (getKakaoLoginStatus()) {
+          setCurrentStep('record');
+        }
+      }, 500);
+      
+    } catch (error) {
+      alert('카카오 로그인 실패: ' + error.message);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      setCurrentStep('landing');
+      setAudioFile(null);
+      setAnalysisResults(null);
+      setAdWatched(false);
+      setAdCountdown(15);
+    } catch (error) {
+      console.error('로그아웃 실패:', error);
+    }
+  };
+
   const keywordMapping = {
     brightness: ['포먼트 조절', '공명 훈련', '톤 밝기', '성구 공명'],
     thickness: ['성구 전환', '브릿지 훈련', '믹스 보이스', '전환 연습'],
@@ -68,7 +111,6 @@ const VocalAnalysisPlatform = () => {
     power: ['아포지오 호흡', '호흡 근육 훈련', '호흡 조절', '호흡법 발성']
   };
 
-  // 음성 분석
   const analyzeAudioFile = async (audioFile) => {
     setIsAnalyzing(true);
     
@@ -125,7 +167,6 @@ const VocalAnalysisPlatform = () => {
     }
   };
 
-  // 녹음 시작
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -153,7 +194,6 @@ const VocalAnalysisPlatform = () => {
     }
   };
 
-  // 녹음 정지
   const stopRecording = () => {
     if (mediaRecorderRef.current) {
       mediaRecorderRef.current.stop();
@@ -163,7 +203,6 @@ const VocalAnalysisPlatform = () => {
     clearInterval(timerRef.current);
   };
 
-  // 파일 업로드
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
     if (file && (file.type.startsWith('audio/') || file.name.endsWith('.m4a'))) {
@@ -173,7 +212,6 @@ const VocalAnalysisPlatform = () => {
     }
   };
 
-  // 분석 시작
   const startAnalysis = async () => {
     if (!audioFile) return;
     
@@ -189,7 +227,6 @@ const VocalAnalysisPlatform = () => {
     }
   };
 
-  // 광고 시청
   useEffect(() => {
     if (currentStep === 'ad' && !adWatched) {
       const countdown = setInterval(() => {
@@ -206,7 +243,6 @@ const VocalAnalysisPlatform = () => {
     }
   }, [currentStep, adWatched]);
 
-  // 점수 색상
   const getScoreColor = (score) => {
     if (score >= 50) return 'from-green-400 to-green-600';
     if (score >= 0) return 'from-yellow-400 to-yellow-600';
@@ -214,7 +250,6 @@ const VocalAnalysisPlatform = () => {
     return 'from-red-400 to-red-600';
   };
 
-  // 가장 낮은 점수 영역
   const getWeakestArea = () => {
     if (!analysisResults) return null;
     const scores = analysisResults.scores;
@@ -224,7 +259,6 @@ const VocalAnalysisPlatform = () => {
     );
   };
 
-  // 랜딩 페이지
   const LandingPage = () => (
     <div className="min-h-screen bg-gradient-to-br from-purple-600 via-blue-600 to-teal-500 flex items-center justify-center">
       <div className="text-center text-white p-8">
@@ -263,34 +297,19 @@ const VocalAnalysisPlatform = () => {
     </div>
   );
 
-  // 로그인 페이지
   const LoginPage = () => (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="bg-white p-8 rounded-xl shadow-lg max-w-md w-full">
         <h2 className="text-2xl font-bold text-center mb-6">로그인</h2>
         <div className="space-y-4">
           <button 
-            onClick={async () => {
-              try {
-                await signInWithGoogle();
-                console.log('구글 로그인 완료');
-              } catch (error) {
-                alert('구글 로그인 실패: ' + error.message);
-              }
-            }}
+            onClick={handleGoogleLogin}
             className="w-full bg-red-500 text-white py-3 rounded-lg hover:bg-red-600 transition-colors"
           >
             구글로 로그인
           </button>
           <button 
-            onClick={async () => {
-              try {
-                await signInWithKakao();
-                console.log('카카오 로그인 완료');
-              } catch (error) {
-                alert('카카오 로그인 실패: ' + error.message);
-              }
-            }}
+            onClick={handleKakaoLogin}
             className="w-full bg-yellow-400 text-black py-3 rounded-lg hover:bg-yellow-500 transition-colors"
           >
             카카오로 로그인
@@ -300,21 +319,13 @@ const VocalAnalysisPlatform = () => {
     </div>
   );
 
-  // 녹음/업로드 페이지
   const RecordPage = () => (
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-2xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold">음성 녹음 또는 업로드</h2>
           <button 
-            onClick={async () => {
-              try {
-                await logout();
-                setCurrentStep('landing');
-              } catch (error) {
-                console.error('로그아웃 실패:', error);
-              }
-            }}
+            onClick={handleLogout}
             className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"
           >
             로그아웃
@@ -498,7 +509,6 @@ const VocalAnalysisPlatform = () => {
 
   return (
     <div>
-      {/* 로그인 상태 표시 */}
       <div className="fixed top-4 left-4 bg-white p-3 rounded-lg shadow-md border z-50">
         <div className="text-sm">
           <div className="font-semibold mb-1">로그인 상태:</div>
