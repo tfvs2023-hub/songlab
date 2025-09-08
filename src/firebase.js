@@ -1,7 +1,8 @@
+// firebase.js - 완전히 새로운 접근
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
 
-// Firebase 설정 (songlab-v2)
+// Firebase 설정
 const firebaseConfig = {
   apiKey: "AIzaSyC7Igb5sDzPeSU19A6b5xazhnj4WufFuG8",
   authDomain: "songlab-v2.firebaseapp.com",
@@ -11,13 +12,11 @@ const firebaseConfig = {
   appId: "1:250128010188:web:62d0d11aa90501db022b69"
 };
 
-// Firebase 초기화
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 
 // Google 로그인
 const googleProvider = new GoogleAuthProvider();
-
 export const signInWithGoogle = async () => {
   try {
     const result = await signInWithPopup(auth, googleProvider);
@@ -28,29 +27,34 @@ export const signInWithGoogle = async () => {
   }
 };
 
-// 카카오 로그인 (SDK 2.x 버전용)
-export const signInWithKakao = () => {
-  return new Promise((resolve, reject) => {
-    if (!window.Kakao || !window.Kakao.Auth) {
-      reject(new Error('카카오 SDK가 로드되지 않았습니다'));
-      return;
-    }
+// 카카오 초기화 및 로그인 - 통합된 접근
+export const initializeKakao = () => {
+  if (window.Kakao && !window.Kakao.isInitialized()) {
+    window.Kakao.init('2ae9be2d22fc1649379d85aca7b8cd4c');
+    console.log('카카오 초기화 완료');
+  }
+};
 
-    try {
-      window.Kakao.Auth.loginForm({
-        success: function(authObj) {
-          console.log('카카오 로그인 성공:', authObj);
-          resolve(authObj);
-        },
-        fail: function(err) {
-          console.error('카카오 로그인 실패:', err);
-          reject(err);
-        }
-      });
-    } catch (error) {
-      console.error('카카오 로그인 오류:', error);
-      reject(error);
-    }
+// 카카오 로그인 상태 확인
+export const getKakaoLoginStatus = () => {
+  if (!window.Kakao?.Auth) return false;
+  
+  const accessToken = window.Kakao.Auth.getAccessToken();
+  console.log('카카오 토큰 확인:', accessToken);
+  return !!accessToken;
+};
+
+// 카카오 로그인 실행
+export const signInWithKakao = () => {
+  if (!window.Kakao?.Auth) {
+    throw new Error('카카오 SDK가 로드되지 않았습니다');
+  }
+  
+  // 현재 URL을 저장하여 로그인 후 돌아올 위치 지정
+  const redirectUri = window.location.origin + window.location.pathname;
+  
+  window.Kakao.Auth.authorize({
+    redirectUri: redirectUri
   });
 };
 
@@ -61,18 +65,11 @@ export const logout = async () => {
     await signOut(auth);
     
     // 카카오 로그아웃
-    if (window.Kakao && window.Kakao.Auth) {
+    if (window.Kakao?.Auth && getKakaoLoginStatus()) {
       window.Kakao.Auth.logout();
     }
   } catch (error) {
     console.error('로그아웃 오류:', error);
     throw error;
-  }
-};
-
-// 카카오 초기화 (HTML에서 SDK 로드 후 호출)
-export const initKakao = () => {
-  if (window.Kakao && !window.Kakao.isInitialized()) {
-    window.Kakao.init('2ae9be2d22fc1649379d85aca7b8cd4c'); // 카카오 JavaScript 키
   }
 };
