@@ -1,4 +1,3 @@
-// firebase.js - 완전히 새로운 접근
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
 
@@ -12,6 +11,7 @@ const firebaseConfig = {
   appId: "1:250128010188:web:62d0d11aa90501db022b69"
 };
 
+// Firebase 초기화
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 
@@ -27,7 +27,7 @@ export const signInWithGoogle = async () => {
   }
 };
 
-// 카카오 초기화 및 로그인 - 통합된 접근
+// 카카오 초기화
 export const initializeKakao = () => {
   if (window.Kakao && !window.Kakao.isInitialized()) {
     window.Kakao.init('2ae9be2d22fc1649379d85aca7b8cd4c');
@@ -35,7 +35,7 @@ export const initializeKakao = () => {
   }
 };
 
-// 카카오 로그인 상태 확인 (더 단순하게)
+// 카카오 로그인 상태 확인
 export const getKakaoLoginStatus = () => {
   try {
     if (!window.Kakao || !window.Kakao.Auth) {
@@ -51,18 +51,21 @@ export const getKakaoLoginStatus = () => {
   }
 };
 
+// 카카오 팝업 로그인
 export const signInWithKakao = () => {
   return new Promise((resolve, reject) => {
-    if (!window.Kakao?.Auth) {
+    if (!window.Kakao || !window.Kakao.Auth) {
       reject(new Error('카카오 SDK가 로드되지 않았습니다'));
       return;
     }
 
     window.Kakao.Auth.login({
       success: function(response) {
+        console.log('카카오 팝업 로그인 성공:', response);
         resolve(response);
       },
       fail: function(error) {
+        console.error('카카오 팝업 로그인 실패:', error);
         reject(error);
       }
     });
@@ -76,7 +79,7 @@ export const logout = async () => {
     await signOut(auth);
     
     // 카카오 로그아웃
-    if (window.Kakao?.Auth && getKakaoLoginStatus()) {
+    if (window.Kakao && window.Kakao.Auth && getKakaoLoginStatus()) {
       window.Kakao.Auth.logout();
     }
   } catch (error) {
