@@ -1,9 +1,10 @@
 {
-  "functions": {
-    "songlab_backend/main.py": {
-      "runtime": "@vercel/python"
+  "builds": [
+    {
+      "src": "songlab_backend/main.py",
+      "use": "@vercel/python"
     }
-  },
+  ],
   "routes": [
     {
       "src": "/api/(.*)",
