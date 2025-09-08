@@ -62,6 +62,10 @@ export const signInWithKakao = () => {
     window.Kakao.Auth.login({
       success: function(response) {
         console.log('카카오 팝업 로그인 성공:', response);
+        
+        // 토큰을 카카오 SDK에 수동 설정
+        window.Kakao.Auth.setAccessToken(response.access_token);
+        
         resolve(response);
       },
       fail: function(error) {
