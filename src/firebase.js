@@ -15,6 +15,9 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 
+// 카카오 토큰 저장 변수
+let kakaoAccessToken = null;
+
 // Google 로그인
 const googleProvider = new GoogleAuthProvider();
 export const signInWithGoogle = async () => {
@@ -38,13 +41,24 @@ export const initializeKakao = () => {
 // 카카오 로그인 상태 확인
 export const getKakaoLoginStatus = () => {
   try {
-    if (!window.Kakao || !window.Kakao.Auth) {
-      return false;
+    // 저장된 토큰 확인
+    if (kakaoAccessToken) {
+      console.log('저장된 카카오 토큰:', kakaoAccessToken.substring(0, 10) + '...');
+      return true;
     }
     
-    const accessToken = window.Kakao.Auth.getAccessToken();
-    console.log('카카오 토큰:', accessToken);
-    return !!accessToken;
+    // SDK 토큰도 확인
+    if (window.Kakao && window.Kakao.Auth) {
+      const sdkToken = window.Kakao.Auth.getAccessToken();
+      if (sdkToken) {
+        console.log('SDK 카카오 토큰:', sdkToken.substring(0, 10) + '...');
+        kakaoAccessToken = sdkToken; // 동기화
+        return true;
+      }
+    }
+    
+    console.log('카카오 토큰: null');
+    return false;
   } catch (error) {
     console.error('카카오 상태 확인 오류:', error);
     return false;
@@ -63,8 +77,15 @@ export const signInWithKakao = () => {
       success: function(response) {
         console.log('카카오 팝업 로그인 성공:', response);
         
-        // 토큰을 카카오 SDK에 수동 설정
-        window.Kakao.Auth.setAccessToken(response.access_token);
+        // 토큰을 변수에 저장
+        kakaoAccessToken = response.access_token;
+        
+        // SDK에도 설정 시도
+        try {
+          window.Kakao.Auth.setAccessToken(response.access_token);
+        } catch (e) {
+          console.log('SDK 토큰 설정 실패, 변수 저장으로 대체');
+        }
         
         resolve(response);
       },
@@ -84,7 +105,13 @@ export const logout = async () => {
     
     // 카카오 로그아웃
     if (window.Kakao && window.Kakao.Auth && getKakaoLoginStatus()) {
-      window.Kakao.Auth.logout();
+      try {
+        window.Kakao.Auth.logout();
+      } catch (e) {
+        console.log('카카오 SDK 로그아웃 실패');
+      }
+      // 저장된 토큰도 삭제
+      kakaoAccessToken = null;
     }
   } catch (error) {
     console.error('로그아웃 오류:', error);
