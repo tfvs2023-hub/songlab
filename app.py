@@ -294,4 +294,4 @@ def index():
 
 if __name__ == '__main__':
     logger.info("보컬 분석 서버 시작")
-    app.run(host='0.0.0.0', port=8001, debug=True)
+    app.run(host='127.0.0.1', port=5000, debug=True)  # 포트를 5000으로 변경
