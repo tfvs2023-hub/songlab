@@ -51,17 +51,21 @@ export const getKakaoLoginStatus = () => {
   }
 };
 
-// 카카오 로그인 실행
 export const signInWithKakao = () => {
-  if (!window.Kakao?.Auth) {
-    throw new Error('카카오 SDK가 로드되지 않았습니다');
-  }
-  
-  // 현재 URL을 저장하여 로그인 후 돌아올 위치 지정
-  const redirectUri = window.location.origin + window.location.pathname;
-  
-  window.Kakao.Auth.authorize({
-    redirectUri: redirectUri
+  return new Promise((resolve, reject) => {
+    if (!window.Kakao?.Auth) {
+      reject(new Error('카카오 SDK가 로드되지 않았습니다'));
+      return;
+    }
+
+    window.Kakao.Auth.login({
+      success: function(response) {
+        resolve(response);
+      },
+      fail: function(error) {
+        reject(error);
+      }
+    });
   });
 };
 

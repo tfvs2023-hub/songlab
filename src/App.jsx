@@ -20,44 +20,21 @@ const VocalAnalysisPlatform = () => {
   const [adCountdown, setAdCountdown] = useState(15);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   
-  // Firebase 사용자 상태
   const [firebaseUser] = useAuthState(auth);
   
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const timerRef = useRef(null);
 
-  // 통합 로그인 상태 확인
+  // 로그인 상태 확인 함수
   const isLoggedIn = () => {
-    const hasFirebaseUser = !!firebaseUser;
-    const hasKakaoToken = getKakaoLoginStatus();
-    return hasFirebaseUser || hasKakaoToken;
+    return !!firebaseUser || getKakaoLoginStatus();
   };
 
-// 앱 초기화
-useEffect(() => {
-  // 카카오 초기화
-  initializeKakao();
-  
-  // 카카오 로그인 완료 처리 (이 부분을 추가)
-  const urlParams = new URLSearchParams(window.location.search);
-  const code = urlParams.get('code');
-  
-  if (code) {
-    console.log('카카오 인증 코드 감지:', code);
-    
-    // 카카오 토큰 요청
-    window.Kakao.Auth.setAccessTokenByAuthCode(code);
-  }
-  
-  // URL에서 카카오 로그인 완료 코드 제거 (깔끔하게)
-  const url = new URL(window.location);
-  if (url.searchParams.has('code') || url.searchParams.has('state')) {
-    url.searchParams.delete('code');
-    url.searchParams.delete('state');
-    window.history.replaceState({}, '', url.pathname);
-  }
-}, []);
+  // 카카오 초기화만 수행
+  useEffect(() => {
+    initializeKakao();
+  }, []);
 
   // 로그인 상태 변화 감지
   useEffect(() => {
@@ -68,14 +45,13 @@ useEffect(() => {
       currentStep
     });
 
-    // 로그인되어 있고 landing/login 페이지라면 record로 이동
     if (isLoggedIn() && (currentStep === 'landing' || currentStep === 'login')) {
       console.log('로그인됨 - record 페이지로 이동');
       setCurrentStep('record');
     }
-  }, [firebaseUser, currentStep]); // firebaseUser만 의존성에 포함
+  }, [firebaseUser, currentStep]);
 
-  // 로그인 버튼 클릭 핸들러
+  // 로그인 버튼 클릭
   const handleLoginClick = () => {
     if (isLoggedIn()) {
       setCurrentStep('record');
@@ -92,9 +68,8 @@ useEffect(() => {
     power: ['아포지오 호흡', '호흡 근육 훈련', '호흡 조절', '호흡법 발성']
   };
 
-  // 음성 분석 API 호출
+  // 음성 분석
   const analyzeAudioFile = async (audioFile) => {
-    console.log('분석 시작');
     setIsAnalyzing(true);
     
     try {
@@ -308,10 +283,10 @@ useEffect(() => {
             구글로 로그인
           </button>
           <button 
-            onClick={() => {
+            onClick={async () => {
               try {
-                signInWithKakao();
-                console.log('카카오 로그인 시작');
+                await signInWithKakao();
+                console.log('카카오 로그인 완료');
               } catch (error) {
                 alert('카카오 로그인 실패: ' + error.message);
               }
@@ -329,7 +304,6 @@ useEffect(() => {
   const RecordPage = () => (
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-2xl mx-auto">
-        {/* 상단에 로그아웃 버튼 추가 */}
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold">음성 녹음 또는 업로드</h2>
           <button 
@@ -349,7 +323,6 @@ useEffect(() => {
         
         <div className="bg-white rounded-xl shadow-lg p-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* 녹음 섹션 */}
             <div className="text-center">
               <h3 className="text-lg font-semibold mb-4">직접 녹음하기</h3>
               <div className="mb-4">
@@ -374,7 +347,6 @@ useEffect(() => {
               </button>
             </div>
 
-            {/* 업로드 섹션 */}
             <div className="text-center">
               <h3 className="text-lg font-semibold mb-4">파일 업로드</h3>
               <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 mb-4">
@@ -414,7 +386,6 @@ useEffect(() => {
     </div>
   );
 
-  // 간단한 분석, 광고, 결과 페이지들...
   const AnalysisPage = () => (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="text-center">
@@ -458,8 +429,6 @@ useEffect(() => {
   const ResultsPage = () => {
     if (!analysisResults) return <div>결과를 불러오는 중...</div>;
 
-    const weakestArea = getWeakestArea();
-
     return (
       <div className="min-h-screen bg-gray-50 p-4">
         <div className="max-w-4xl mx-auto">
@@ -473,14 +442,12 @@ useEffect(() => {
               </div>
             )}
 
-            {/* MBTI 결과 */}
             <div className="text-center mb-8">
               <div className="text-6xl mb-2">{analysisResults.mbti?.typeIcon}</div>
               <h3 className="text-2xl font-bold text-gray-800 mb-2">{analysisResults.mbti?.typeName}</h3>
               <p className="text-gray-600">{analysisResults.mbti?.description}</p>
             </div>
             
-            {/* 분석 결과 차트 */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
               {Object.entries(analysisResults.scores).map(([key, score]) => (
                 <div key={key} className="text-center p-4 border border-gray-200 rounded-lg">
@@ -529,7 +496,6 @@ useEffect(() => {
     );
   };
 
-  // 메인 렌더링
   return (
     <div>
       {/* 로그인 상태 표시 */}
