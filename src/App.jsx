@@ -78,14 +78,22 @@ const VocalAnalysisPlatform = () => {
     try {
       await signInWithKakao();
       console.log('카카오 로그인 완료');
-      
-      setTimeout(() => {
+    
+      // 즉시 상태 체크하여 페이지 이동
+      if (getKakaoLoginStatus()) {
+        console.log('카카오 토큰 확인됨, 즉시 이동');
+        setCurrentStep('record');
+      } else {
+        // 토큰 확인이 안되면 강제 업데이트 후 재시도
         forceStatusUpdate();
-        if (getKakaoLoginStatus()) {
-          setCurrentStep('record');
-        }
-      }, 500);
-      
+        setTimeout(() => {
+          if (getKakaoLoginStatus()) {
+            console.log('재시도로 토큰 확인됨, 이동');
+            setCurrentStep('record');
+          }
+        }, 100);
+      }
+    
     } catch (error) {
       alert('카카오 로그인 실패: ' + error.message);
     }
