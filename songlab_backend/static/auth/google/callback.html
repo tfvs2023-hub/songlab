@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>구글 로그인 처리중... - SongLab</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .callback-container {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+        .loading-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+            animation: spin 2s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        h2 {
+            color: #333;
+            margin: 0 0 15px 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        p {
+            color: #666;
+            margin: 0;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+        .error-message {
+            background: #fee;
+            border: 1px solid #fcc;
+            color: #c33;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none;
+        }
+        .home-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin-top: 20px;
+            transition: all 0.3s ease;
+        }
+        .home-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="callback-container">
+        <div class="loading-icon">🔄</div>
+        <h2>구글 로그인 처리중...</h2>
+        <p>잠시만 기다려주세요.<br>자동으로 홈페이지로 이동합니다.</p>
+        
+        <div id="error-message" class="error-message">
+            <strong>로그인 실패</strong><br>
+            <span id="error-text"></span>
+            <a href="/" class="home-btn">홈으로 돌아가기</a>
+        </div>
+    </div>
+    
+    <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+        const error = urlParams.get('error');
+        
+        if (error) {
+            showError('로그인이 취소되었거나 오류가 발생했습니다.');
+            return;
+        }
+        
+        if (!code) {
+            showError('인증 코드가 없습니다. 다시 시도해주세요.');
+            return;
+        }
+        
+        try {
+            const response = await fetch('/auth/google', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ code })
+            });
+            
+            const result = await response.json();
+            
+            if (response.ok && result.access_token) {
+                localStorage.setItem('songlab_token', result.access_token);
+                localStorage.setItem('user_info', JSON.stringify({
+                    name: result.user_info.name,
+                    email: result.user_info.email,
+                    profile_image: result.user_info.profile_image
+                }));
+                
+                // 성공 메시지 표시 후 홈으로 이동
+                document.querySelector('h2').textContent = '로그인 완료!';
+                document.querySelector('p').innerHTML = '환영합니다!<br>홈페이지로 이동합니다.';
+                document.querySelector('.loading-icon').textContent = '✅';
+                
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 1500);
+            } else {
+                throw new Error(result.detail || '로그인 처리 중 오류가 발생했습니다.');
+            }
+        } catch (error) {
+            console.error('구글 로그인 오류:', error);
+            showError(error.message || '네트워크 오류가 발생했습니다.');
+        }
+    });
+    
+    function showError(message) {
+        document.querySelector('.loading-icon').textContent = '❌';
+        document.querySelector('h2').textContent = '로그인 실패';
+        document.querySelector('p').style.display = 'none';
+        document.getElementById('error-text').textContent = message;
+        document.getElementById('error-message').style.display = 'block';
+    }
+    </script>
+</body>
+</html>

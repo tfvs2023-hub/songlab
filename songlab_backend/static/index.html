@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SongLab - AI 보컬 분석</title>
+    <meta name="description" content="CREPE 딥러닝 기술로 당신의 보컬 MBTI를 분석하고 맞춤형 개선점을 제공합니다">
+    
+    <!-- Google AdSense -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-YOUR-ADSENSE-ID"></script>
+    
+    <!-- Open Graph -->
+    <meta property="og:title" content="SongLab - AI 보컬 분석">
+    <meta property="og:description" content="나만의 보컬 MBTI 찾기">
+    <meta property="og:image" content="/images/og-image.jpg">
+    
+    <link rel="stylesheet" href="http://www.songlab.kr:8001/static/style.css">
+    <link rel="icon" href="/images/favicon.ico">
+</head>
+<body>
+    <!-- 로딩 오버레이 -->
+    <div id="loading-overlay" class="loading-overlay hidden">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <p id="loading-text">음성을 분석 중입니다...</p>
+        </div>
+    </div>
+
+    <!-- 광고 모달 -->
+    <div id="ad-modal" class="ad-modal hidden">
+        <div class="ad-content">
+            <div class="ad-header">
+                <h3>잠깐! 광고를 확인해주세요</h3>
+                <div id="ad-timer" class="ad-timer">5</div>
+            </div>
+            <div id="ad-container" class="ad-display"></div>
+            <button id="skip-ad" class="skip-ad-btn hidden">광고 건너뛰기</button>
+        </div>
+    </div>
+
+    <header class="header">
+        <div class="container">
+            <div class="nav">
+                <div class="logo">
+                    <h1>🎤 SongLab</h1>
+                    <span class="subtitle">AI 보컬 분석</span>
+                </div>
+                <div class="auth-section">
+                    <div id="auth-buttons" class="auth-buttons">
+                        <button id="kakao-login" class="login-btn kakao">
+                            <span>🟡</span> 카카오 로그인
+                        </button>
+                        <button id="google-login" class="login-btn google">
+                            <span>🔍</span> 구글 로그인
+                        </button>
+                    </div>
+                    <div id="user-info" class="user-info hidden">
+                        <img id="user-avatar" src="" alt="프로필" class="user-avatar">
+                        <span id="user-name"></span>
+                        <button id="logout-btn" class="logout-btn">로그아웃</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="container">
+            <!-- 히어로 섹션 -->
+            <section class="hero">
+                <h1 class="hero-title">
+                    나만의 <span class="highlight">보컬 MBTI</span> 찾기
+                </h1>
+                <p class="hero-subtitle">
+                    CREPE 딥러닝 기술로 정확한 음성 분석<br>
+                    16가지 보컬 타입으로 당신의 목소리를 분류합니다
+                </p>
+                <div class="hero-features">
+                    <div class="feature">
+                        <span class="feature-icon">🎯</span>
+                        <span>고정밀 피치 분석</span>
+                    </div>
+                    <div class="feature">
+                        <span class="feature-icon">📊</span>
+                        <span>4축 음성 특성 분석</span>
+                    </div>
+                    <div class="feature">
+                        <span class="feature-icon">🎵</span>
+                        <span>맞춤 개선점 제공</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 분석 섹션 -->
+            <section class="analysis-section">
+                <div id="upload-area" class="upload-area">
+                    <div class="upload-content">
+                        <div class="upload-icon">🎤</div>
+                        <h3>음성 파일을 업로드하세요</h3>
+                        <p>WAV, MP3, M4A 파일 지원 (최대 50MB)</p>
+                        <div class="upload-actions">
+                            <input type="file" id="file-input" accept="audio/*" multiple="false">
+                            <label for="file-input" class="upload-btn">
+                                📁 파일 선택
+                            </label>
+                            <div class="record-section">
+                                <button id="record-btn" class="record-btn">
+                                    🔴 녹음하기
+                                </button>
+                                <div id="recording-controls" class="recording-controls hidden">
+                                    <div class="recording-indicator">
+                                        <span class="recording-dot"></span>
+                                        <span id="recording-time">00:00</span>
+                                    </div>
+                                    <button id="stop-recording" class="stop-btn">⏹️ 정지</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="file-info" class="file-info hidden">
+                            <div class="file-details">
+                                <span id="file-name"></span>
+                                <span id="file-size"></span>
+                            </div>
+                            <button id="analyze-btn" class="analyze-btn">
+                                🚀 분석 시작
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 결과 표시 영역 -->
+                <div id="result-section" class="result-section hidden">
+                    <div id="analysis-complete" class="analysis-complete">
+                        <div class="complete-icon">✅</div>
+                        <h3>분석이 완료되었습니다!</h3>
+                        <p>결과를 확인하려면 아래 버튼을 클릭하세요</p>
+                        <button id="show-result-btn" class="result-btn">
+                            🎤 결과보기
+                        </button>
+                    </div>
+
+                    <!-- 최종 결과 -->
+                    <div id="final-result" class="final-result hidden">
+                        <div class="result-header">
+                            <h2>당신의 보컬 MBTI</h2>
+                        </div>
+                        
+                        <div class="mbti-card">
+                            <div class="mbti-type">
+                                <div id="mbti-icon" class="mbti-icon">🎵</div>
+                                <div class="mbti-info">
+                                    <h3 id="mbti-name">분석 중...</h3>
+                                    <p id="mbti-code">----</p>
+                                    <p id="mbti-desc">설명을 불러오는 중...</p>
+                                </div>
+                            </div>
+                            
+                            <div class="mbti-scores">
+                                <h4>🎯 음성 특성 점수</h4>
+                                <div class="score-bars">
+                                    <div class="score-item">
+                                        <label>밝기 (Brightness)</label>
+                                        <div class="score-bar">
+                                            <div id="brightness-bar" class="score-fill"></div>
+                                            <span id="brightness-score">0</span>
+                                        </div>
+                                    </div>
+                                    <div class="score-item">
+                                        <label>두께 (Thickness)</label>
+                                        <div class="score-bar">
+                                            <div id="thickness-bar" class="score-fill"></div>
+                                            <span id="thickness-score">0</span>
+                                        </div>
+                                    </div>
+                                    <div class="score-item">
+                                        <label>선명도 (Clarity)</label>
+                                        <div class="score-bar">
+                                            <div id="clarity-bar" class="score-fill"></div>
+                                            <span id="clarity-score">0</span>
+                                        </div>
+                                    </div>
+                                    <div class="score-item">
+                                        <label>파워 (Power)</label>
+                                        <div class="score-bar">
+                                            <div id="power-bar" class="score-fill"></div>
+                                            <span id="power-score">0</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="vocal-range">
+                                <h4>🎼 음역대 정보</h4>
+                                <div class="range-info">
+                                    <div class="range-item">
+                                        <span class="range-label">현재 최고음</span>
+                                        <span id="current-note" class="range-value">분석 중...</span>
+                                    </div>
+                                    <div class="range-item">
+                                        <span class="range-label">잠재 최고음</span>
+                                        <span id="potential-note" class="range-value">분석 중...</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="feedback-section">
+                                <div class="pros-cons">
+                                    <div class="pros">
+                                        <h4>✨ 장점</h4>
+                                        <ul id="pros-list"></ul>
+                                    </div>
+                                    <div class="cons">
+                                        <h4>💡 개선점</h4>
+                                        <ul id="cons-list"></ul>
+                                    </div>
+                                </div>
+                                
+                                <div class="recommended-songs">
+                                    <h4>🎵 추천곡</h4>
+                                    <div id="songs-list" class="songs-list"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="action-buttons">
+                            <button id="share-btn" class="share-btn">
+                                📤 결과 공유하기
+                            </button>
+                            <button id="retry-btn" class="retry-btn">
+                                🔄 다시 분석하기
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 광고 섹션 -->
+            <section class="ad-section">
+                <div class="ad-banner">
+                    <ins class="adsbygoogle"
+                         style="display:block"
+                         data-ad-client="ca-pub-YOUR-ADSENSE-ID"
+                         data-ad-slot="1234567890"
+                         data-ad-format="auto"
+                         data-full-width-responsive="true"></ins>
+                </div>
+            </section>
+
+            <!-- 기능 소개 -->
+            <section class="features-section">
+                <h2>🔬 정밀한 AI 분석 기술</h2>
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">🎯</div>
+                        <h3>CREPE 피치 분석</h3>
+                        <p>CNN 기반 고정밀 피치 추출로 ±10 cents 정확도</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🧠</div>
+                        <h3>4축 MBTI 분류</h3>
+                        <p>밝기, 두께, 선명도, 파워 4개 축으로 16가지 타입 분류</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">📈</div>
+                        <h3>음역대 예측</h3>
+                        <p>현재 최고음과 잠재적 음역 확장 가능성 분석</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🎵</div>
+                        <h3>맞춤형 피드백</h3>
+                        <p>개인별 장단점 분석과 실용적인 개선 방향 제시</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-info">
+                    <h3>🎤 SongLab</h3>
+                    <p>AI 기술로 더 나은 보컬을 만들어갑니다</p>
+                </div>
+                <div class="footer-links">
+                    <a href="/privacy">개인정보처리방침</a>
+                    <a href="/terms">이용약관</a>
+                    <a href="/contact">문의하기</a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 SongLab. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="http://www.songlab.kr:8001/static/script.js"></script>
+    <script>
+        // AdSense 광고 로드
+        (adsbygoogle = window.adsbygoogle || []).push({});
+    </script>
+</body>
+</html>

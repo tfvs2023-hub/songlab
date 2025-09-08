@@ -1,0 +1,14 @@
+# SongLab 최소 패키지 (종속성 문제 해결용)
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+
+# 오디오 처리 (CREPE 없이 기본만)
+librosa==0.10.1
+soundfile==0.12.1
+numpy==1.24.3
+scipy==1.11.4
+
+# CREPE (선택사항 - 설치 실패시 제거)
+# crepe==0.0.13
+# tensorflow-cpu==2.13.0
