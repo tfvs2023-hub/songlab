@@ -7,18 +7,13 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "https://www.songlab.kr", 
-        "https://songlab.kr",
-        "https://songlab-git-main-riseones-projects-4944954f.vercel.app"
-    ],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-@app.post("/analyze")
+@app.post("/api/analyze")
 async def analyze_voice(file: UploadFile = File(...)):
     scores = {
         "brightness": random.randint(30, 90),
@@ -27,7 +22,6 @@ async def analyze_voice(file: UploadFile = File(...)):
         "power": random.randint(30, 90)
     }
     
-    # 가장 낮은 점수 하나만 찾아서 매핑
     lowest_score = min(scores, key=scores.get)
     
     keyword_map = {
@@ -53,10 +47,10 @@ async def analyze_voice(file: UploadFile = File(...)):
     }
     return result
 
-@app.get("/health")
+@app.get("/api/health")
 async def health_check():
     return {"status": "healthy"}
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+# Vercel 핸들러
+def handler(request):
+    return app(request)
