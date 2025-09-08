@@ -126,7 +126,7 @@ const VocalAnalysisPlatform = () => {
       const formData = new FormData();
       formData.append('file', audioFile);
 
-      const response = await fetch('http://localhost:8001/analyze', {
+      const response = await fetch('http://localhost:5000/analyze', {
         method: 'POST',
         body: formData
       });
@@ -494,6 +494,28 @@ const VocalAnalysisPlatform = () => {
                 </div>
               ))}
             </div>
+
+            {/* 유튜브 추천 섹션 추가 */}
+             {analysisResults.mbti?.youtubeKeywords && (
+               <div className="mt-6 p-4 bg-red-50 rounded-lg">
+                 <h4 className="font-semibold mb-3 text-red-800">🎵 맞춤 보컬 강의 추천</h4>
+                 <div className="space-y-2">
+                   {analysisResults.mbti.youtubeKeywords.map((keyword, index) => (
+                     <a 
+                       key={index}
+                       href={`https://www.youtube.com/results?search_query=${encodeURIComponent(keyword)}`}
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       className="block bg-red-500 text-white p-3 rounded hover:bg-red-600 transition-colors"
+                     >
+                       📚 {keyword}
+                     </a>
+                   ))}
+                 </div>
+               </div>
+             )}
+
+             <div className="text-center"></div>
 
             <div className="text-center">
               <button
