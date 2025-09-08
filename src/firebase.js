@@ -65,7 +65,7 @@ export const getKakaoLoginStatus = () => {
   }
 };
 
-// 카카오 팝업 로그인
+// 카카오 로그인 - 여러 방식 시도
 export const signInWithKakao = () => {
   return new Promise((resolve, reject) => {
     if (!window.Kakao || !window.Kakao.Auth) {
@@ -73,27 +73,53 @@ export const signInWithKakao = () => {
       return;
     }
 
-    window.Kakao.Auth.login({
-      success: function(response) {
-        console.log('카카오 팝업 로그인 성공:', response);
-        
-        // 토큰을 변수에 저장
-        kakaoAccessToken = response.access_token;
-        
-        // SDK에도 설정 시도
-        try {
-          window.Kakao.Auth.setAccessToken(response.access_token);
-        } catch (e) {
-          console.log('SDK 토큰 설정 실패, 변수 저장으로 대체');
+    // 사용 가능한 함수들 확인
+    console.log('사용 가능한 카카오 Auth 함수들:', Object.keys(window.Kakao.Auth));
+
+    // 방법 1: login 시도
+    if (typeof window.Kakao.Auth.login === 'function') {
+      window.Kakao.Auth.login({
+        success: function(response) {
+          console.log('카카오 login 성공:', response);
+          kakaoAccessToken = response.access_token;
+          resolve(response);
+        },
+        fail: function(error) {
+          console.error('카카오 login 실패:', error);
+          reject(error);
         }
-        
-        resolve(response);
-      },
-      fail: function(error) {
-        console.error('카카오 팝업 로그인 실패:', error);
-        reject(error);
-      }
-    });
+      });
+      return;
+    }
+
+    // 방법 2: loginForm 시도
+    if (typeof window.Kakao.Auth.loginForm === 'function') {
+      window.Kakao.Auth.loginForm({
+        success: function(response) {
+          console.log('카카오 loginForm 성공:', response);
+          kakaoAccessToken = response.access_token;
+          resolve(response);
+        },
+        fail: function(error) {
+          console.error('카카오 loginForm 실패:', error);
+          reject(error);
+        }
+      });
+      return;
+    }
+
+    // 방법 3: authorize 시도 (리다이렉트 방식)
+    if (typeof window.Kakao.Auth.authorize === 'function') {
+      console.log('authorize 방식 사용');
+      window.Kakao.Auth.authorize({
+        redirectUri: window.location.origin
+      });
+      resolve();
+      return;
+    }
+
+    // 모든 방법 실패
+    reject(new Error('사용 가능한 카카오 로그인 함수가 없습니다'));
   });
 };
 
@@ -106,7 +132,9 @@ export const logout = async () => {
     // 카카오 로그아웃
     if (window.Kakao && window.Kakao.Auth && getKakaoLoginStatus()) {
       try {
-        window.Kakao.Auth.logout();
+        if (typeof window.Kakao.Auth.logout === 'function') {
+          window.Kakao.Auth.logout();
+        }
       } catch (e) {
         console.log('카카오 SDK 로그아웃 실패');
       }
