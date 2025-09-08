@@ -126,7 +126,7 @@ const VocalAnalysisPlatform = () => {
       const formData = new FormData();
       formData.append('file', audioFile);
 
-      const response = await fetch('http://localhost:5000/analyze', {
+      const response = await fetch('https://songlab-git-main-riseones-projects-4944954f.vercel.app/analyze', {
         method: 'POST',
         body: formData
       });
