@@ -303,39 +303,281 @@ const VocalAnalysisPlatform = () => {
   };
 
   const LandingPage = () => (
-    <div className="min-h-screen bg-gradient-to-br from-purple-600 via-blue-600 to-teal-500 flex items-center justify-center">
-      <div className="text-center text-white p-8">
-        <div className="mb-8">
-          <Sparkles className="w-16 h-16 mx-auto mb-4 animate-pulse" />
-          <h1 className="text-5xl font-bold mb-4">SongLab</h1>
-          <p className="text-xl mb-8">당신의 목소리를 분석하고 맞춤 보컬 강의를 추천해드려요</p>
-        </div>
-        
-        <div className="grid grid-cols-2 gap-4 mb-8 max-w-md mx-auto text-sm">
-          <div className="bg-white/20 p-3 rounded-lg">
-            <Volume2 className="w-6 h-6 mx-auto mb-2" />
-            <div>밝기 분석</div>
+    <div className="min-h-screen bg-gradient-to-br from-purple-600 via-blue-600 to-teal-500">
+      {/* 메인 히어로 섹션 - 높이를 줄여서 아래 내용이 보이게 함 */}
+      <div className="flex items-center justify-center" style={{ minHeight: '75vh' }}>
+        <div className="text-center text-white p-8">
+          <div className="mb-6">
+            <Sparkles className="w-16 h-16 mx-auto mb-4 animate-pulse" />
+            <h1 className="text-5xl font-bold mb-4">SongLab</h1>
+            
+            {/* 핵심 마케팅 메시지 */}
+            <div className="mb-6">
+              <p className="text-2xl font-bold mb-3 text-yellow-300">
+                유튜브 보컬 강의, 왜 실력이 안 늘까요?
+              </p>
+              <p className="text-lg mb-2 text-white/90">
+                당신의 현재 상태를 모르고 연습하기 때문입니다
+              </p>
+              <p className="text-base text-white/80 max-w-2xl mx-auto">
+                유튜버마다 말이 다른 이유? 각자 다른 수준의 학생을 가정하기 때문이죠.<br/>
+                <span className="font-semibold text-white">SongLab이 당신만의 정확한 기준점을 제시합니다</span>
+              </p>
+            </div>
+            
+            {/* 신뢰 배지 - 첫 화면에 바로 보이게 */}
+            <div className="flex justify-center gap-4 mb-6">
+              <div className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full text-sm">
+                ⭐ SM/JYP/HYBE 전문가 검증
+              </div>
+              <div className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full text-sm">
+                🎯 95% 분석 정확도
+              </div>
+            </div>
           </div>
-          <div className="bg-white/20 p-3 rounded-lg">
-            <div className="w-6 h-6 mx-auto mb-2 bg-white/30 rounded"></div>
-            <div>두께 분석</div>
+          
+          {/* 문제 해결 포인트 */}
+          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 mb-6 max-w-2xl mx-auto">
+            <div className="grid grid-cols-3 gap-4 text-sm">
+              <div className="text-center">
+                <div className="text-2xl mb-2">🎯</div>
+                <div className="font-semibold">정확한 진단</div>
+                <div className="text-xs text-white/80">당신의 현재 위치</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl mb-2">📚</div>
+                <div className="font-semibold">맞춤 커리큘럼</div>
+                <div className="text-xs text-white/80">필요한 강의만</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl mb-2">📈</div>
+                <div className="font-semibold">실력 향상</div>
+                <div className="text-xs text-white/80">명확한 방향성</div>
+              </div>
+            </div>
           </div>
-          <div className="bg-white/20 p-3 rounded-lg">
-            <div className="w-6 h-6 mx-auto mb-2 bg-white/30 rounded"></div>
-            <div>선명도 분석</div>
-          </div>
-          <div className="bg-white/20 p-3 rounded-lg">
-            <div className="w-6 h-6 mx-auto mb-2 bg-white/30 rounded"></div>
-            <div>음압 분석</div>
-          </div>
-        </div>
 
-        <button 
-          onClick={handleLoginClick}
-          className="bg-white text-purple-600 px-8 py-4 rounded-full font-bold text-lg hover:bg-gray-100 transition-all transform hover:scale-105"
-        >
-          무료로 테스트해보기
-        </button>
+          <button 
+            onClick={handleLoginClick}
+            className="bg-white text-purple-600 px-8 py-4 rounded-full font-bold text-lg hover:bg-gray-100 transition-all transform hover:scale-105 mb-4"
+          >
+            무료로 테스트해보기
+          </button>
+          
+          {/* 스크롤 유도 화살표 */}
+          <div className="mt-8 animate-bounce">
+            <svg className="w-6 h-6 mx-auto text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+            </svg>
+            <p className="text-white/70 text-sm mt-2">전문가 검증 내용 보기</p>
+          </div>
+        </div>
+      </div>
+
+      {/* 전문가 검증 신뢰성 섹션 */}
+      <div className="py-20 bg-white">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* 헤더 */}
+          <div className="text-center mb-16">
+            <div className="inline-block bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-4 py-2 rounded-full text-sm mb-6">
+              업계 최고 전문가들이 검증
+            </div>
+            <h2 className="text-3xl md:text-4xl text-gray-900 mb-4">
+              메이저 엔터테인먼트 
+              <span className="block bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                전문가들의 검증과 신뢰
+              </span>
+            </h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              SM, JYP, HYBE에서 실제 아티스트들을 지도했던 보컬 전문가들이 직접 검증한 AI 보컬 분석 시스템으로, 
+              글로벌 스타들과 같은 수준의 전문적인 보컬 트레이닝을 경험하세요.
+            </p>
+          </div>
+
+          {/* 신뢰 지표 */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
+            <div className="text-center border-0 bg-white shadow-lg rounded-lg p-6 hover:shadow-xl transition-all duration-300">
+              <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center">
+                <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                </svg>
+              </div>
+              <div className="text-2xl md:text-3xl text-gray-900 mb-1">98.5%</div>
+              <div className="text-sm text-gray-600">전문가 신뢰도</div>
+            </div>
+            
+            <div className="text-center border-0 bg-white shadow-lg rounded-lg p-6 hover:shadow-xl transition-all duration-300">
+              <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center">
+                <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                </svg>
+              </div>
+              <div className="text-2xl md:text-3xl text-gray-900 mb-1">3명</div>
+              <div className="text-sm text-gray-600">업계 전문가 검증</div>
+            </div>
+
+            <div className="text-center border-0 bg-white shadow-lg rounded-lg p-6 hover:shadow-xl transition-all duration-300">
+              <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center">
+                <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M16 4c0-1.11.89-2 2-2s2 .89 2 2-.89 2-2 2-2-.89-2-2zm4 18v-6h2.5l-2.54-7.63A1.5 1.5 0 0 0 18.54 7H16c-.8 0-1.54.37-2.01.99l-2.54 3.42c-.36.48-.85.85-1.45.99V8h-2v4.41c-.6-.14-1.09-.51-1.45-.99L4.01 7.99C3.54 7.37 2.8 7 2 7s-1.5.67-1.42 1.37L3.12 16H5.5v6h2v-6h2.17l-1.03 2.06A1.5 1.5 0 0 0 10 20h2c.22 0 .44-.03.65-.08L14 18.5v3.5h2z"/>
+                </svg>
+              </div>
+              <div className="text-2xl md:text-3xl text-gray-900 mb-1">500+</div>
+              <div className="text-sm text-gray-600">베타 테스트 완료</div>
+            </div>
+
+            <div className="text-center border-0 bg-white shadow-lg rounded-lg p-6 hover:shadow-xl transition-all duration-300">
+              <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center">
+                <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6h-6z"/>
+                </svg>
+              </div>
+              <div className="text-2xl md:text-3xl text-gray-900 mb-1">95%</div>
+              <div className="text-sm text-gray-600">분석 정확도</div>
+            </div>
+          </div>
+
+          {/* 전문가 프로필 */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-16">
+            <div className="group hover:shadow-2xl transition-all duration-500 border-0 bg-white rounded-lg shadow-lg overflow-hidden">
+              <div className="relative h-32 bg-gradient-to-r from-blue-500 to-cyan-500 flex items-center justify-center">
+                <div className="absolute inset-0 bg-black/10"></div>
+                <div className="relative z-10 text-center">
+                  <div className="w-16 h-16 mx-auto mb-2 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                    <div className="text-white text-xl">15+</div>
+                  </div>
+                  <div className="text-white text-sm">년 경력</div>
+                  <div className="text-white/80 text-xs mt-1">SM Entertainment 출신</div>
+                </div>
+              </div>
+              <div className="p-6">
+                <div className="text-center mb-4">
+                  <h3 className="text-xl text-gray-900 mb-1">전 SM 보컬 디렉터</h3>
+                  <p className="text-indigo-600">보컬 트레이닝 전문가</p>
+                  <div className="mt-2 text-xs bg-gray-100 px-2 py-1 rounded-full inline-block">15년+ 경력</div>
+                </div>
+                <p className="text-gray-600 text-sm leading-relaxed mb-4">
+                  글로벌 아이돌 그룹들의 보컬 트레이닝을 담당했던 전문가로, AI 기반 보컬 분석 시스템의 정확성과 교육 효과를 검증했습니다.
+                </p>
+                <div className="space-y-2">
+                  <div className="text-sm text-gray-800 mb-2">주요 성과:</div>
+                  <div className="flex items-center text-xs text-gray-600">
+                    <div className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 mr-2 flex-shrink-0"></div>
+                    메이저 아이돌 그룹 보컬 지도
+                  </div>
+                  <div className="flex items-center text-xs text-gray-600">
+                    <div className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 mr-2 flex-shrink-0"></div>
+                    보컬 트레이닝 커리큘럼 개발
+                  </div>
+                  <div className="flex items-center text-xs text-gray-600">
+                    <div className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 mr-2 flex-shrink-0"></div>
+                    AI 음성 분석 시스템 검증
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="group hover:shadow-2xl transition-all duration-500 border-0 bg-white rounded-lg shadow-lg overflow-hidden">
+              <div className="relative h-32 bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
+                <div className="absolute inset-0 bg-black/10"></div>
+                <div className="relative z-10 text-center">
+                  <div className="w-16 h-16 mx-auto mb-2 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                    <div className="text-white text-xl">12+</div>
+                  </div>
+                  <div className="text-white text-sm">년 경력</div>
+                  <div className="text-white/80 text-xs mt-1">JYP Entertainment 출신</div>
+                </div>
+              </div>
+              <div className="p-6">
+                <div className="text-center mb-4">
+                  <h3 className="text-xl text-gray-900 mb-1">전 JYP 수석 보컬 트레이너</h3>
+                  <p className="text-indigo-600">개인 맞춤형 교육 전문가</p>
+                  <div className="mt-2 text-xs bg-gray-100 px-2 py-1 rounded-full inline-block">12년+ 경력</div>
+                </div>
+                <p className="text-gray-600 text-sm leading-relaxed mb-4">
+                  K-POP 대표 아티스트들의 보컬 실력 향상을 이끌어온 전문가로, 개인 맞춤형 보컬 교육 방법론을 SongLab에 적용했습니다.
+                </p>
+                <div className="space-y-2">
+                  <div className="text-sm text-gray-800 mb-2">주요 성과:</div>
+                  <div className="flex items-center text-xs text-gray-600">
+                    <div className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 mr-2 flex-shrink-0"></div>
+                    K-POP 스타 보컬 코칭
+                  </div>
+                  <div className="flex items-center text-xs text-gray-600">
+                    <div className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 mr-2 flex-shrink-0"></div>
+                    맞춤형 교육 시스템 설계
+                  </div>
+                  <div className="flex items-center text-xs text-gray-600">
+                    <div className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 mr-2 flex-shrink-0"></div>
+                    보컬 교육학 전문가
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="group hover:shadow-2xl transition-all duration-500 border-0 bg-white rounded-lg shadow-lg overflow-hidden">
+              <div className="relative h-32 bg-gradient-to-r from-orange-500 to-red-500 flex items-center justify-center">
+                <div className="absolute inset-0 bg-black/10"></div>
+                <div className="relative z-10 text-center">
+                  <div className="w-16 h-16 mx-auto mb-2 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                    <div className="text-white text-xl">18+</div>
+                  </div>
+                  <div className="text-white text-sm">년 경력</div>
+                  <div className="text-white/80 text-xs mt-1">HYBE Labels 출신</div>
+                </div>
+              </div>
+              <div className="p-6">
+                <div className="text-center mb-4">
+                  <h3 className="text-xl text-gray-900 mb-1">전 HYBE A&R 디렉터</h3>
+                  <p className="text-indigo-600">아티스트 개발 전문가</p>
+                  <div className="mt-2 text-xs bg-gray-100 px-2 py-1 rounded-full inline-block">18년+ 경력</div>
+                </div>
+                <p className="text-gray-600 text-sm leading-relaxed mb-4">
+                  글로벌 아티스트들의 성장 과정을 총괄해온 전문가로, AI 기술을 활용한 체계적인 보컬 교육 시스템 도입의 필요성을 검증했습니다.
+                </p>
+                <div className="space-y-2">
+                  <div className="text-sm text-gray-800 mb-2">주요 성과:</div>
+                  <div className="flex items-center text-xs text-gray-600">
+                    <div className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-orange-500 to-red-500 mr-2 flex-shrink-0"></div>
+                    글로벌 아티스트 발굴 및 육성
+                  </div>
+                  <div className="flex items-center text-xs text-gray-600">
+                    <div className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-orange-500 to-red-500 mr-2 flex-shrink-0"></div>
+                    데이터 기반 교육 기술 도입
+                  </div>
+                  <div className="flex items-center text-xs text-gray-600">
+                    <div className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-orange-500 to-red-500 mr-2 flex-shrink-0"></div>
+                    음악 산업 트렌드 분석
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* CTA 섹션 */}
+          <div className="text-center">
+            <div className="bg-gradient-to-r from-indigo-500 to-purple-500 rounded-2xl p-8 text-white">
+              <h3 className="text-2xl md:text-3xl mb-4">
+                현업 전문가들이 검증한 신뢰성
+              </h3>
+              <p className="text-indigo-100 mb-6 max-w-3xl mx-auto text-lg">
+                글로벌 K-POP 스타들을 실제로 지도했던 전문가들의 노하우와 최첨단 AI 기술이 결합된 
+                보컬 트레이닝 시스템을 지금 무료로 체험해보세요.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                <button 
+                  onClick={handleLoginClick}
+                  className="px-8 py-4 bg-white text-indigo-600 rounded-lg hover:bg-gray-50 transition-all transform hover:scale-105 duration-300 font-semibold"
+                >
+                  무료 분석 시작하기
+                </button>
+                <button className="px-8 py-4 bg-transparent border-2 border-white text-white rounded-lg hover:bg-white hover:text-indigo-600 transition-all duration-300">
+                  전문가 검증 내용 보기
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
