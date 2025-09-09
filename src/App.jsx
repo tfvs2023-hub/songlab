@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Mic, Upload, Youtube, Sparkles, Volume2, AlertCircle } from 'lucide-react';
+import GoogleAd from './components/GoogleAd';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { 
   auth, 
@@ -126,30 +127,43 @@ const VocalAnalysisPlatform = () => {
       const formData = new FormData();
       formData.append('file', audioFile);
 
-      const response = await fetch('/api/analyze')
-        method: 'POST',
-        body: formData
-      });
-
-      if (!response.ok) throw new Error('분석 서버 오류');
-
-      const result = await response.json();
+      // 백엔드 서버가 없을 때를 대비한 임시 처리
+      console.log('백엔드 서버 연결 시도...');
       
-      if ((result.success || result.status === 'success') && result.mbti) {
-        const normalizedScores = {
-          brightness: (result.mbti.scores.brightness - 50) * 2,
-          thickness: (result.mbti.scores.thickness - 50) * 2,
-          clarity: (result.mbti.scores.clarity - 50) * 2,
-          power: (result.mbti.scores.power - 50) * 2
-        };
+      try {
+        const response = await fetch('http://localhost:8001/api/analyze', {
+          method: 'POST',
+          body: formData
+        });
 
+        if (!response.ok) throw new Error('분석 서버 오류');
+
+        const result = await response.json();
+        return result;
+      } catch (fetchError) {
+        console.log('백엔드 서버 연결 실패, 데모 모드로 전환');
+        
+        // 데모 결과 반환
+        const demoResults = [
+          { typeCode: 'BLHS', typeName: '스위트 멜로디', typeIcon: '🍯', description: '꿀같이 달콤한 음색의 소유자. 부드럽고 감미로운 음성으로 마음을 따뜻하게 합니다.' },
+          { typeCode: 'BTCP', typeName: '크리스털 디바', typeIcon: '💎', description: '맑고 강렬한 고음역대의 소유자. 크리스털처럼 투명하면서도 파워풀한 음성으로 듣는 이를 사로잡습니다.' },
+          { typeCode: 'DTCP', typeName: '메탈 보이스', typeIcon: '🤘', description: '강철 같은 음성의 소유자. 묵직하고 강렬한 저음으로 강한 인상을 남깁니다.' },
+          { typeCode: 'BTHP', typeName: '파워 소프라노', typeIcon: '⚡', description: '강력한 고음 발성의 소유자. 오페라 가수 같은 웅장하고 드라마틱한 음성이 특징입니다.' }
+        ];
+        
+        const randomResult = demoResults[Math.floor(Math.random() * demoResults.length)];
+        
         return {
-          scores: normalizedScores,
-          mbti: result.mbti,
-          success: true
+          scores: {
+            brightness: Math.random() * 200 - 100,
+            thickness: Math.random() * 200 - 100,
+            clarity: Math.random() * 200 - 100,
+            power: Math.random() * 200 - 100
+          },
+          mbti: randomResult,
+          success: true,
+          isDemo: true
         };
-      } else {
-        throw new Error(result.message || '분석 실패');
       }
     } catch (error) {
       console.error('음성 분석 오류:', error);
@@ -259,7 +273,7 @@ const VocalAnalysisPlatform = () => {
   };
 
   const getWeakestArea = () => {
-    if (!analysisResults) return null;
+    if (!analysisResults || !analysisResults.scores) return null;
     const scores = analysisResults.scores;
     const areas = Object.entries(scores);
     return areas.reduce((min, current) => 
@@ -421,14 +435,17 @@ const VocalAnalysisPlatform = () => {
         <h2 className="text-2xl font-bold mb-4">잠깐만요!</h2>
         <p className="text-gray-600 mb-6">결과를 보시기 전에 짧은 광고를 시청해주세요</p>
         
-        <div className="bg-gray-800 h-48 rounded-lg flex items-center justify-center mb-4">
-          <div className="text-white text-center">
-            <Youtube className="w-12 h-12 mx-auto mb-2" />
-            <p>광고 영상</p>
-            {!adWatched && (
-              <p className="text-sm mt-2">{adCountdown}초 후 건너뛸 수 있습니다</p>
-            )}
-          </div>
+        <div className="bg-gray-100 rounded-lg mb-4" style={{ minHeight: '250px' }}>
+          <GoogleAd 
+            slot="6119841043"
+            format="auto"
+            responsive={true}
+          />
+          {!adWatched && (
+            <div className="text-center mt-2">
+              <p className="text-sm text-gray-600">{adCountdown}초 후 건너뛸 수 있습니다</p>
+            </div>
+          )}
         </div>
 
         {adWatched ? (
@@ -447,6 +464,11 @@ const VocalAnalysisPlatform = () => {
 
   const ResultsPage = () => {
     if (!analysisResults) return <div>결과를 불러오는 중...</div>;
+
+    const getScoreColor = (score) => {
+      if (score > 0) return 'from-blue-500 to-blue-600';
+      return 'from-orange-500 to-orange-600';
+    };
 
     return (
       <div className="min-h-screen bg-gray-50 p-4">
@@ -467,9 +489,11 @@ const VocalAnalysisPlatform = () => {
               <p className="text-gray-600">{analysisResults.mbti?.description}</p>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-              {Object.entries(analysisResults.scores).map(([key, score]) => (
-                <div key={key} className="text-center p-4 border border-gray-200 rounded-lg">
+            <div className="mb-8">
+              <h3 className="text-2xl font-bold text-center mb-6">4축 보컬 분석</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {analysisResults.mbti?.scores && Object.entries(analysisResults.mbti.scores).map(([key, score]) => (
+                  <div key={key} className="text-center p-4 border border-gray-200 rounded-lg">
                   <h3 className="font-semibold mb-4 text-lg">
                     {key === 'brightness' && '밝기'}
                     {key === 'thickness' && '두께'}
@@ -477,13 +501,14 @@ const VocalAnalysisPlatform = () => {
                     {key === 'power' && '음압'}
                   </h3>
                   <div className="relative mb-4">
-                    <div className="w-full bg-gray-200 rounded-full h-6 relative">
-                      <div className="absolute left-1/2 top-0 h-full w-0.5 bg-gray-400"></div>
+                    <div className="w-full bg-gray-200 rounded-full h-6 relative overflow-hidden">
+                      <div className="absolute left-1/2 top-0 h-full w-0.5 bg-gray-400 z-10"></div>
                       <div 
-                        className={`bg-gradient-to-r ${getScoreColor(score)} h-6 rounded-full transition-all duration-1000`}
+                        className={`absolute h-6 bg-gradient-to-r ${getScoreColor(score)} transition-all duration-1000`}
                         style={{ 
                           width: `${Math.abs(score)/2}%`,
-                          marginLeft: score < 0 ? `${50 - Math.abs(score)/4}%` : '50%'
+                          left: score < 0 ? `${50 - Math.abs(score)/2}%` : '50%',
+                          borderRadius: score < 0 ? '9999px 0 0 9999px' : '0 9999px 9999px 0'
                         }}
                       ></div>
                     </div>
@@ -493,7 +518,76 @@ const VocalAnalysisPlatform = () => {
                   </div>
                 </div>
               ))}
+              </div>
             </div>
+
+            {(analysisResults.youtubeVideos && analysisResults.youtubeVideos.length > 0) ? (
+              <div className="mb-8">
+                <h3 className="text-2xl font-bold text-center mb-6">🎯 추천 YouTube 강의</h3>
+                <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-6">
+                  <p className="text-gray-700 mb-6 text-center">
+                    당신의 음성 특성 개선을 위한 맞춤 강의 6개
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {analysisResults.youtubeVideos.map((video, index) => (
+                      <a
+                        key={index}
+                        href={video.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group bg-white rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 hover:scale-105"
+                      >
+                        <div className="relative aspect-video">
+                          <img 
+                            src={video.thumbnail} 
+                            alt={video.title}
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-opacity duration-200 flex items-center justify-center">
+                            <svg className="w-16 h-16 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                            </svg>
+                          </div>
+                        </div>
+                        <div className="p-4">
+                          <h4 className="font-semibold text-gray-800 line-clamp-2 mb-2">
+                            {video.title}
+                          </h4>
+                          <p className="text-sm text-gray-600">
+                            {video.channelTitle}
+                          </p>
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : analysisResults.mbti?.youtubeKeywords && (
+              <div className="mb-8">
+                <h3 className="text-2xl font-bold text-center mb-6">🎯 추천 YouTube 검색어</h3>
+                <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-6">
+                  <p className="text-gray-700 mb-4 text-center">
+                    당신의 가장 낮은 점수 축을 개선하기 위한 추천 검색어
+                  </p>
+                  <div className="flex flex-wrap gap-3 justify-center">
+                    {analysisResults.mbti.youtubeKeywords.map((keyword, index) => (
+                      <a
+                        key={index}
+                        href={`https://www.youtube.com/results?search_query=${encodeURIComponent(keyword)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center px-4 py-2 bg-white rounded-full shadow-md hover:shadow-lg transition-shadow duration-200 hover:scale-105 transform"
+                      >
+                        <svg className="w-5 h-5 mr-2 text-red-600" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                        </svg>
+                        <span className="text-gray-700 font-medium">{keyword}</span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="text-center">
               <button

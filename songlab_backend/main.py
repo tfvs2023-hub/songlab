@@ -1,7 +1,13 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-import random
+from voice_analyzer import VoiceAnalyzer
+from youtube_service import YouTubeService
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
@@ -13,44 +19,70 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Initialize services
+analyzer = VoiceAnalyzer()
+youtube_service = YouTubeService()
+
 @app.post("/api/analyze")
 async def analyze_voice(file: UploadFile = File(...)):
-    scores = {
-        "brightness": random.randint(30, 90),
-        "thickness": random.randint(30, 90), 
-        "clarity": random.randint(30, 90),
-        "power": random.randint(30, 90)
-    }
-    
-    lowest_score = min(scores, key=scores.get)
-    
-    keyword_map = {
-        "brightness": ["포먼트 조절 보컬 레슨", "공명 훈련 발성법"],
-        "thickness": ["성구 전환 연습법", "믹스 보이스 만들기"],
-        "clarity": ["성대 내전 발성법", "발음 명료 딕션 훈련"],
-        "power": ["아포지오 호흡법", "호흡 근육 훈련"]
-    }
-    
-    keywords = keyword_map.get(lowest_score, ["보컬 기초 발성법"])
-    
-    result = {
-        "status": "success",
-        "mbti": {
-            "typeCode": "ENFP",
-            "typeName": "ENFP",
-            "typeIcon": "🎤", 
-            "description": "ENFP 보컬 스타일",
-            "scores": scores,
-            "youtubeKeywords": keywords
-        },
-        "success": True
-    }
-    return result
+    try:
+        # Validate file type
+        if not file.content_type or not file.content_type.startswith('audio/'):
+            raise HTTPException(status_code=400, detail="Invalid file type. Please upload an audio file.")
+        
+        # Read audio file
+        audio_data = await file.read()
+        
+        # Analyze audio
+        logger.info(f"Analyzing audio file: {file.filename}")
+        scores = analyzer.analyze_audio(audio_data)
+        
+        # Generate MBTI-style result
+        mbti_result = analyzer.generate_mbti_style(scores)
+        
+        # Get YouTube recommendations based on keywords
+        youtube_videos = []
+        if mbti_result.get('youtubeKeywords'):
+            # 각 키워드로 2개씩 검색해서 총 6개
+            for keyword in mbti_result['youtubeKeywords'][:3]:  # 3개 키워드 사용
+                videos = youtube_service.search_videos(keyword, max_results=2)
+                youtube_videos.extend(videos)
+        
+        result = {
+            "status": "success",
+            "mbti": mbti_result,
+            "youtubeVideos": youtube_videos[:6],  # 최대 6개 동영상
+            "success": True
+        }
+        
+        logger.info(f"Analysis complete. Scores: {scores}")
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error analyzing voice: {str(e)}")
+        # Return demo result if analysis fails
+        import random
+        demo_scores = {
+            "brightness": random.randint(-50, 50),
+            "thickness": random.randint(-50, 50), 
+            "clarity": random.randint(-50, 50),
+            "power": random.randint(-50, 50)
+        }
+        
+        demo_mbti = analyzer.generate_mbti_style(demo_scores)
+        
+        return {
+            "status": "demo",
+            "mbti": demo_mbti,
+            "success": True,
+            "isDemo": True,
+            "error": str(e)
+        }
 
 @app.get("/api/health")
 async def health_check():
-    return {"status": "healthy"}
+    return {"status": "healthy", "service": "voice-analysis-api"}
 
-# Vercel 핸들러
-def handler(request):
-    return app(request)
+@app.get("/")
+async def root():
+    return {"message": "Voice Analysis API is running"}
