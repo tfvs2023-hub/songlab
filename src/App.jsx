@@ -22,6 +22,10 @@ const VocalAnalysisPlatform = () => {
   const [adCountdown, setAdCountdown] = useState(15);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [forceUpdate, setForceUpdate] = useState(0);
+
+  // API URL configuration
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001';
+  const [backendStatus, setBackendStatus] = useState('checking');
   
   const [firebaseUser] = useAuthState(auth);
   
@@ -37,9 +41,24 @@ const VocalAnalysisPlatform = () => {
     setForceUpdate(prev => prev + 1);
   };
 
+  // Check backend health
+  const checkBackendHealth = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/health`);
+      if (response.ok) {
+        setBackendStatus('connected');
+      } else {
+        setBackendStatus('error');
+      }
+    } catch (error) {
+      setBackendStatus('disconnected');
+    }
+  };
+
   useEffect(() => {
     initializeKakao();
     setKakaoStatusUpdateCallback(forceStatusUpdate);
+    checkBackendHealth();
   }, []);
 
   useEffect(() => {
@@ -131,7 +150,7 @@ const VocalAnalysisPlatform = () => {
       console.log('백엔드 서버 연결 시도...');
       
       try {
-        const response = await fetch('http://localhost:8001/api/analyze', {
+        const response = await fetch(`${API_URL}/api/analyze`, {
           method: 'POST',
           body: formData
         });
@@ -139,9 +158,11 @@ const VocalAnalysisPlatform = () => {
         if (!response.ok) throw new Error('분석 서버 오류');
 
         const result = await response.json();
+        setBackendStatus('connected');
         return result;
       } catch (fetchError) {
         console.log('백엔드 서버 연결 실패, 데모 모드로 전환');
+        setBackendStatus('disconnected');
         
         // 데모 결과 반환
         const demoResults = [
@@ -632,8 +653,22 @@ const VocalAnalysisPlatform = () => {
               return <div className="text-red-600">✗ 로그인 안됨</div>;
             }
           })()}
+          
+          {/* Backend Status */}
+          <div className="mt-2">
+            {(() => {
+              if (backendStatus === 'checking') {
+                return <div className="text-yellow-600">🔄 GPU 서버 확인중...</div>;
+              } else if (backendStatus === 'connected') {
+                return <div className="text-green-600">🚀 GPU 서버 연결됨</div>;
+              } else {
+                return <div className="text-orange-600">⚠️ 로컬 모드 (데모)</div>;
+              }
+            })()}
+          </div>
+          
           <div className="text-gray-500 text-xs mt-1">
-            단계: {currentStep}
+            단계: {currentStep} | API: {API_URL}
           </div>
         </div>
       </div>

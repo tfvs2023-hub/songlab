@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  songlab-backend:
+    build: .
+    container_name: songlab-gpu-backend
+    ports:
+      - "8001:8001"
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=0
+      - CUDA_VISIBLE_DEVICES=0
+      - YOUTUBE_API_KEY=${YOUTUBE_API_KEY:-AIzaSyBjA6trv3wFn0OMLRMc82QIome84rdLc5k}
+      - PYTHONUNBUFFERED=1
+      - TF_CPP_MIN_LOG_LEVEL=2  # Reduce TensorFlow logging
+    volumes:
+      - ./logs:/app/logs
+      - ./temp:/app/temp
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+    networks:
+      - songlab-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: Nginx reverse proxy for production
+  nginx:
+    image: nginx:alpine
+    container_name: songlab-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - songlab-backend
+    networks:
+      - songlab-network
+    restart: unless-stopped
+
+networks:
+  songlab-network:
+    driver: bridge
