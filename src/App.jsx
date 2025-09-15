@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Mic, Upload, Youtube, Sparkles, Volume2, AlertCircle } from 'lucide-react';
-import GoogleAd from './components/GoogleAd';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { 
   auth, 
@@ -18,8 +17,6 @@ const VocalAnalysisPlatform = () => {
   const [recordingTime, setRecordingTime] = useState(0);
   const [audioFile, setAudioFile] = useState(null);
   const [analysisResults, setAnalysisResults] = useState(null);
-  const [adWatched, setAdWatched] = useState(false);
-  const [adCountdown, setAdCountdown] = useState(15);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [forceUpdate, setForceUpdate] = useState(0);
 
@@ -125,8 +122,6 @@ const VocalAnalysisPlatform = () => {
       setCurrentStep('landing');
       setAudioFile(null);
       setAnalysisResults(null);
-      setAdWatched(false);
-      setAdCountdown(15);
     } catch (error) {
       console.error('로그아웃 실패:', error);
     }
@@ -150,7 +145,7 @@ const VocalAnalysisPlatform = () => {
       console.log('백엔드 서버 연결 시도...');
       
       try {
-        const response = await fetch(`${API_URL}/api/analyze`, {
+        const response = await fetch(`${API_URL}/api/analyze?force_engine=studio`, {
           method: 'POST',
           body: formData
         });
@@ -263,28 +258,13 @@ const VocalAnalysisPlatform = () => {
     try {
       const result = await analyzeAudioFile(audioFile);
       setAnalysisResults(result);
-      setCurrentStep('ad');
+      setCurrentStep('results');
     } catch (error) {
       alert('분석 중 오류가 발생했습니다: ' + error.message);
       setCurrentStep('record');
     }
   };
 
-  useEffect(() => {
-    if (currentStep === 'ad' && !adWatched) {
-      const countdown = setInterval(() => {
-        setAdCountdown(prev => {
-          if (prev <= 1) {
-            setAdWatched(true);
-            clearInterval(countdown);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-      return () => clearInterval(countdown);
-    }
-  }, [currentStep, adWatched]);
 
   const getScoreColor = (score) => {
     if (score >= 50) return 'from-green-400 to-green-600';
@@ -314,14 +294,11 @@ const VocalAnalysisPlatform = () => {
             {/* 핵심 마케팅 메시지 */}
             <div className="mb-6">
               <p className="text-2xl font-bold mb-3 text-yellow-300">
-                유튜브 보컬 강의, 왜 실력이 안 늘까요?
-              </p>
-              <p className="text-lg mb-2 text-white/90">
-                당신의 현재 상태를 모르고 연습하기 때문입니다
+                내 목소리 사용설명서 SongLab
               </p>
               <p className="text-base text-white/80 max-w-2xl mx-auto">
-                유튜버마다 말이 다른 이유? 각자 다른 수준의 학생을 가정하기 때문이죠.<br/>
-                <span className="font-semibold text-white">SongLab이 당신만의 정확한 기준점을 제시합니다</span>
+                아무 강의나 보지마세요!<br/>
+                <span className="font-semibold text-white">SongLab이 여러분만을 위한 커리큘럼을 설계해드립니다!</span>
               </p>
             </div>
             
@@ -604,83 +581,469 @@ const VocalAnalysisPlatform = () => {
     </div>
   );
 
-  const RecordPage = () => (
-    <div className="min-h-screen bg-gray-50 p-4">
-      <div className="max-w-2xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold">음성 녹음 또는 업로드</h2>
-          <button 
-            onClick={handleLogout}
-            className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600"
-          >
-            로그아웃
-          </button>
-        </div>
+  const RecordPage = () => {
+    const [audioLevel, setAudioLevel] = useState(0);
+    const [snrEstimate, setSnrEstimate] = useState(null);
+    const [recordingQuality, setRecordingQuality] = useState('unknown');
+    const [environmentChecks, setEnvironmentChecks] = useState({
+      quietLocation: false,
+      phoneDistance: false,
+      micPermission: false,
+      backgroundNoise: false
+    });
+    const [showPrivacyDetails, setShowPrivacyDetails] = useState(false);
+    
+    const audioContextRef = useRef(null);
+    const analyserRef = useRef(null);
+    const dataArrayRef = useRef(null);
+    const animationFrameRef = useRef(null);
+    const backgroundNoiseRef = useRef(null);
+    const signalLevelsRef = useRef([]);
+
+    // Initialize audio monitoring
+    const initializeAudioMonitoring = async (stream) => {
+      try {
+        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+        analyserRef.current = audioContextRef.current.createAnalyser();
+        analyserRef.current.fftSize = 2048;
         
-        <div className="bg-white rounded-xl shadow-lg p-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="text-center">
-              <h3 className="text-lg font-semibold mb-4">직접 녹음하기</h3>
-              <div className="mb-4">
-                <div className={`w-32 h-32 rounded-full border-4 ${isRecording ? 'border-red-500 bg-red-100' : 'border-gray-300 bg-gray-100'} flex items-center justify-center mx-auto mb-4`}>
-                  <Mic className={`w-16 h-16 ${isRecording ? 'text-red-500 animate-pulse' : 'text-gray-500'}`} />
+        const source = audioContextRef.current.createMediaStreamSource(stream);
+        source.connect(analyserRef.current);
+        
+        dataArrayRef.current = new Uint8Array(analyserRef.current.frequencyBinCount);
+        
+        // Start monitoring
+        monitorAudioLevel();
+        
+        setEnvironmentChecks(prev => ({ ...prev, micPermission: true }));
+      } catch (error) {
+        console.error('Audio monitoring setup failed:', error);
+      }
+    };
+
+    // Monitor audio levels and quality
+    const monitorAudioLevel = () => {
+      if (!analyserRef.current || !dataArrayRef.current) return;
+      
+      analyserRef.current.getByteTimeDomainData(dataArrayRef.current);
+      
+      // Calculate RMS level
+      let sum = 0;
+      for (let i = 0; i < dataArrayRef.current.length; i++) {
+        const sample = (dataArrayRef.current[i] - 128) / 128;
+        sum += sample * sample;
+      }
+      const rms = Math.sqrt(sum / dataArrayRef.current.length);
+      const level = Math.max(0, Math.min(100, rms * 100 * 3));
+      
+      setAudioLevel(level);
+      
+      // Store levels for noise analysis
+      signalLevelsRef.current.push(level);
+      if (signalLevelsRef.current.length > 100) {
+        signalLevelsRef.current.shift();
+      }
+      
+      // Estimate background noise (lowest 20% of levels)
+      if (signalLevelsRef.current.length > 50) {
+        const sortedLevels = [...signalLevelsRef.current].sort((a, b) => a - b);
+        const noiseFloor = sortedLevels[Math.floor(sortedLevels.length * 0.2)];
+        backgroundNoiseRef.current = noiseFloor;
+        
+        // Update environment checks
+        setEnvironmentChecks(prev => ({
+          ...prev,
+          backgroundNoise: noiseFloor < 5,
+          quietLocation: noiseFloor < 10
+        }));
+        
+        // Estimate SNR
+        const signalLevel = Math.max(...signalLevelsRef.current);
+        if (signalLevel > noiseFloor) {
+          const snr = 20 * Math.log10(signalLevel / Math.max(noiseFloor, 0.1));
+          setSnrEstimate(Math.max(0, Math.min(40, snr)));
+          
+          // Update recording quality
+          if (snr > 25) setRecordingQuality('excellent');
+          else if (snr > 20) setRecordingQuality('good');
+          else if (snr > 15) setRecordingQuality('fair');
+          else setRecordingQuality('poor');
+        }
+      }
+      
+      // Check phone distance based on level consistency
+      const recentLevels = signalLevelsRef.current.slice(-20);
+      if (recentLevels.length >= 20) {
+        const avgLevel = recentLevels.reduce((a, b) => a + b, 0) / recentLevels.length;
+        const variance = recentLevels.reduce((sum, level) => sum + Math.pow(level - avgLevel, 2), 0) / recentLevels.length;
+        setEnvironmentChecks(prev => ({
+          ...prev,
+          phoneDistance: avgLevel > 15 && avgLevel < 80 && variance < 100
+        }));
+      }
+      
+      animationFrameRef.current = requestAnimationFrame(monitorAudioLevel);
+    };
+
+    // Enhanced recording start
+    const startRecordingAdvanced = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: false, // We want to analyze natural audio
+            autoGainControl: false,
+            sampleRate: 44100
+          } 
+        });
+        
+        await initializeAudioMonitoring(stream);
+        
+        mediaRecorderRef.current = new MediaRecorder(stream, {
+          mimeType: MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4'
+        });
+        
+        audioChunksRef.current = [];
+        
+        mediaRecorderRef.current.ondataavailable = (event) => {
+          audioChunksRef.current.push(event.data);
+        };
+
+        mediaRecorderRef.current.onstop = () => {
+          const audioBlob = new Blob(audioChunksRef.current, { 
+            type: mediaRecorderRef.current.mimeType 
+          });
+          setAudioFile(audioBlob);
+          
+          // Clean up audio monitoring
+          if (animationFrameRef.current) {
+            cancelAnimationFrame(animationFrameRef.current);
+          }
+          if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+            audioContextRef.current.close();
+          }
+        };
+
+        mediaRecorderRef.current.start();
+        setIsRecording(true);
+        setRecordingTime(0);
+
+        timerRef.current = setInterval(() => {
+          setRecordingTime(prev => prev + 1);
+        }, 1000);
+      } catch (error) {
+        alert('마이크 접근 권한이 필요합니다: ' + error.message);
+        setEnvironmentChecks(prev => ({ ...prev, micPermission: false }));
+      }
+    };
+
+    // Enhanced recording stop
+    const stopRecordingAdvanced = () => {
+      if (mediaRecorderRef.current) {
+        mediaRecorderRef.current.stop();
+        mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+      }
+      setIsRecording(false);
+      clearInterval(timerRef.current);
+      
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+
+    // Quality indicator component
+    const QualityIndicator = ({ quality, snr }) => {
+      const getQualityColor = (quality) => {
+        switch (quality) {
+          case 'excellent': return 'text-green-600 bg-green-100';
+          case 'good': return 'text-blue-600 bg-blue-100';
+          case 'fair': return 'text-yellow-600 bg-yellow-100';
+          case 'poor': return 'text-red-600 bg-red-100';
+          default: return 'text-gray-600 bg-gray-100';
+        }
+      };
+      
+      const getQualityText = (quality) => {
+        switch (quality) {
+          case 'excellent': return '최고';
+          case 'good': return '좋음';
+          case 'fair': return '보통';
+          case 'poor': return '낮음';
+          default: return '측정중';
+        }
+      };
+      
+      return (
+        <div className={`px-3 py-1 rounded-full text-sm font-medium ${getQualityColor(quality)}`}>
+          {getQualityText(quality)} {snr && `(SNR: ${snr.toFixed(1)}dB)`}
+        </div>
+      );
+    };
+
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                전문가급 보컬 녹음
+              </h2>
+              <p className="text-gray-600 mt-1">최고 품질의 분석을 위한 스마트 녹음 가이드</p>
+            </div>
+            <button 
+              onClick={handleLogout}
+              className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors"
+            >
+              로그아웃
+            </button>
+          </div>
+          
+          {/* 정보수집 동의 안내 */}
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
+            <div className="flex items-start">
+              <div className="text-amber-600 text-xl mr-3 mt-0.5">ℹ️</div>
+              <div className="flex-1">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-amber-800 font-semibold">서비스 이용 안내</h3>
+                  <button 
+                    onClick={() => setShowPrivacyDetails(!showPrivacyDetails)}
+                    className="text-amber-600 hover:text-amber-800 text-sm font-medium flex items-center transition-colors"
+                  >
+                    자세히보기 
+                    <span className={`ml-1 transition-transform ${showPrivacyDetails ? 'rotate-180' : ''}`}>
+                      ▼
+                    </span>
+                  </button>
                 </div>
-                {isRecording && (
-                  <div className="text-red-500 font-mono text-xl">
-                    {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}
+                <p className="text-amber-700 text-sm leading-relaxed">
+                  본 서비스를 이용하시면 <strong>서비스 개선 및 AI 모델 학습을 위한 익명화된 음성 데이터 수집 및 활용</strong>에 동의하는 것으로 간주됩니다.
+                </p>
+                
+                {showPrivacyDetails && (
+                  <div className="mt-4 p-4 bg-amber-100 rounded-lg border border-amber-300">
+                    <h4 className="font-semibold text-amber-900 mb-3">개인정보 처리방침</h4>
+                    <div className="space-y-3 text-sm text-amber-800">
+                      <div>
+                        <h5 className="font-medium mb-1">📋 수집하는 정보</h5>
+                        <ul className="list-disc list-inside ml-2 space-y-1 text-xs">
+                          <li>음성 분석을 위한 오디오 데이터 (일시적 처리 후 삭제)</li>
+                          <li>분석 결과 데이터 (익명화 저장)</li>
+                          <li>계정 정보 (이메일, 닉네임)</li>
+                        </ul>
+                      </div>
+                      
+                      <div>
+                        <h5 className="font-medium mb-1">🎯 데이터 사용 목적</h5>
+                        <ul className="list-disc list-inside ml-2 space-y-1 text-xs">
+                          <li>서비스 제공 및 개선</li>
+                          <li>익명화된 통계 데이터 생성</li>
+                          <li>AI 모델 학습 (사용자 동의 시)</li>
+                        </ul>
+                      </div>
+                      
+                      <div>
+                        <h5 className="font-medium mb-1">🛡️ 데이터 보호</h5>
+                        <ul className="list-disc list-inside ml-2 space-y-1 text-xs">
+                          <li>개인 식별 정보와 음성 데이터 분리 저장</li>
+                          <li>256-bit 암호화 적용</li>
+                          <li>GDPR/KISA 가이드라인 준수</li>
+                        </ul>
+                      </div>
+                      
+                      <div>
+                        <h5 className="font-medium mb-1">✅ 사용자 권리</h5>
+                        <ul className="list-disc list-inside ml-2 space-y-1 text-xs">
+                          <li>언제든 데이터 삭제 요청 가능</li>
+                          <li>데이터 활용 동의 철회 가능</li>
+                          <li>본인 데이터 열람 요청 가능</li>
+                        </ul>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
-              <button
-                onClick={isRecording ? stopRecording : startRecording}
-                className={`px-6 py-3 rounded-lg font-semibold ${
-                  isRecording 
-                    ? 'bg-red-500 hover:bg-red-600 text-white' 
-                    : 'bg-blue-500 hover:bg-blue-600 text-white'
-                }`}
-              >
-                {isRecording ? '녹음 정지' : '녹음 시작'}
-              </button>
             </div>
-
-            <div className="text-center">
-              <h3 className="text-lg font-semibold mb-4">파일 업로드</h3>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 mb-4">
-                <Upload className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500 mb-4">음성 파일을 선택하세요</p>
-                <input
-                  type="file"
-                  accept="audio/*,.m4a"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                  id="audio-upload"
-                />
-                <label
-                  htmlFor="audio-upload"
-                  className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg cursor-pointer"
-                >
-                  파일 선택
-                </label>
-              </div>
+          </div>
+          
+          {/* Environment Checklist */}
+          <div className="bg-white rounded-xl shadow-lg p-6 mb-6 border border-gray-100">
+            <h3 className="text-xl font-semibold mb-4 flex items-center">
+              <div className="w-2 h-2 bg-green-500 rounded-full mr-3"></div>
+              녹음 환경 체크
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {[
+                { key: 'micPermission', label: '마이크 권한', icon: '🎤' },
+                { key: 'quietLocation', label: '조용한 환경', icon: '🔇' },
+                { key: 'phoneDistance', label: '적절한 거리', icon: '📱' },
+                { key: 'backgroundNoise', label: '배경소음 없음', icon: '✨' }
+              ].map(({ key, label, icon }) => (
+                <div key={key} className={`flex items-center p-3 rounded-lg ${
+                  environmentChecks[key] ? 'bg-green-50 text-green-800' : 'bg-gray-50 text-gray-600'
+                }`}>
+                  <span className="text-lg mr-2">{icon}</span>
+                  <span className="text-sm font-medium">{label}</span>
+                  {environmentChecks[key] && <span className="ml-auto text-green-600">✓</span>}
+                </div>
+              ))}
             </div>
           </div>
 
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Recording Section */}
+            <div className="lg:col-span-2 bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+              <div className="text-center mb-6">
+                <h3 className="text-xl font-semibold mb-2">실시간 음성 모니터링</h3>
+                
+                {/* Audio Level Meter */}
+                <div className="mb-4">
+                  <div className="w-full bg-gray-200 rounded-full h-4 mb-2 overflow-hidden">
+                    <div 
+                      className="h-4 bg-gradient-to-r from-green-400 via-yellow-400 to-red-500 transition-all duration-100"
+                      style={{ width: `${audioLevel}%` }}
+                    ></div>
+                  </div>
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>조용함</span>
+                    <span>적정</span>
+                    <span>큰 소리</span>
+                  </div>
+                  <div className="mt-2">
+                    <QualityIndicator quality={recordingQuality} snr={snrEstimate} />
+                  </div>
+                </div>
+
+                {/* Recording Button */}
+                <div className="mb-4">
+                  <div className={`w-32 h-32 rounded-full border-4 ${
+                    isRecording 
+                      ? 'border-red-500 bg-red-100 shadow-lg shadow-red-200' 
+                      : 'border-blue-500 bg-blue-100 shadow-lg shadow-blue-200'
+                  } flex items-center justify-center mx-auto mb-4 transition-all duration-300`}>
+                    <Mic className={`w-16 h-16 ${
+                      isRecording ? 'text-red-500 animate-pulse' : 'text-blue-500'
+                    }`} />
+                  </div>
+                  {isRecording && (
+                    <div className="text-red-600 font-mono text-2xl mb-2">
+                      {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-3">
+                  <button
+                    onClick={isRecording ? stopRecordingAdvanced : startRecordingAdvanced}
+                    className={`px-8 py-4 rounded-xl font-semibold text-lg transition-all duration-300 ${
+                      isRecording 
+                        ? 'bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-200 hover:scale-105' 
+                        : 'bg-blue-500 hover:bg-blue-600 text-white shadow-lg shadow-blue-200 hover:scale-105'
+                    }`}
+                  >
+                    {isRecording ? '🛑 녹음 정지' : '🎙️ 녹음 시작'}
+                  </button>
+                  
+                  {/* File Upload Alternative */}
+                  <div className="text-center">
+                    <div className="text-gray-400 mb-2">또는</div>
+                    <input
+                      type="file"
+                      accept="audio/*,.m4a"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                      id="audio-upload"
+                    />
+                    <label
+                      htmlFor="audio-upload"
+                      className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-3 rounded-xl cursor-pointer transition-colors inline-flex items-center"
+                    >
+                      <Upload className="w-5 h-5 mr-2" />
+                      파일 업로드
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Recording Tips */}
+            <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+              <h3 className="text-xl font-semibold mb-4 flex items-center">
+                <span className="mr-2">💡</span>
+                녹음 가이드
+              </h3>
+              
+              <div className="space-y-4 text-sm">
+                <div className="p-3 bg-blue-50 rounded-lg">
+                  <div className="font-semibold text-blue-800 mb-1">📱 스마트폰 거리</div>
+                  <div className="text-blue-700">입에서 15-20cm 떨어뜨리기</div>
+                </div>
+                
+                <div className="p-3 bg-purple-50 rounded-lg">
+                  <div className="font-semibold text-purple-800 mb-1">🎵 녹음 방법</div>
+                  <div className="text-purple-700">30초 이내로 피드백받고 싶은 부분을 무반주로 편하게 불러주세요</div>
+                </div>
+                
+                <div className="p-3 bg-orange-50 rounded-lg">
+                  <div className="font-semibold text-orange-800 mb-1">🏠 환경 설정</div>
+                  <div className="text-orange-700">조용한 실내, 에어컨 OFF</div>
+                </div>
+              </div>
+              
+              {snrEstimate !== null && (
+                <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                  <div className="text-sm text-gray-600">
+                    <div className="font-semibold mb-1">실시간 품질 측정</div>
+                    <div>신호대잡음비: {snrEstimate.toFixed(1)}dB</div>
+                    <div className="text-xs mt-1">
+                      {snrEstimate > 25 ? '🎯 최고 품질!' : 
+                       snrEstimate > 20 ? '👍 좋은 품질' : 
+                       snrEstimate > 15 ? '⚠️ 더 조용한 환경 필요' : '❌ 환경 개선 필요'}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Analysis Button */}
           {audioFile && (
             <div className="mt-8 text-center">
-              <p className="text-green-600 mb-4">✓ 음성 파일이 준비되었습니다!</p>
-              <button
-                onClick={startAnalysis}
-                disabled={isAnalyzing}
-                className="bg-purple-600 hover:bg-purple-700 text-white px-8 py-3 rounded-lg font-semibold disabled:opacity-50"
-              >
-                {isAnalyzing ? '분석 중...' : '분석 시작하기'}
-              </button>
+              <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
+                <div className="flex items-center justify-center mb-4">
+                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mr-4">
+                    <span className="text-green-600 text-xl">✓</span>
+                  </div>
+                  <div>
+                    <p className="text-green-600 font-semibold text-lg">녹음 완료!</p>
+                    <p className="text-gray-600 text-sm">
+                      품질: <QualityIndicator quality={recordingQuality} snr={snrEstimate} />
+                    </p>
+                  </div>
+                </div>
+                
+                <button
+                  onClick={startAnalysis}
+                  disabled={isAnalyzing}
+                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-8 py-4 rounded-xl font-semibold text-lg disabled:opacity-50 transition-all duration-300 hover:scale-105 shadow-lg"
+                >
+                  {isAnalyzing ? (
+                    <>
+                      <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full inline-block mr-2"></div>
+                      AI 분석 중...
+                    </>
+                  ) : (
+                    <>
+                      🚀 전문가급 분석 시작
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           )}
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const AnalysisPage = () => (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -692,107 +1055,205 @@ const VocalAnalysisPlatform = () => {
     </div>
   );
 
-  const AdPage = () => (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="bg-white p-8 rounded-xl shadow-lg max-w-md w-full text-center">
-        <h2 className="text-2xl font-bold mb-4">잠깐만요!</h2>
-        <p className="text-gray-600 mb-6">결과를 보시기 전에 짧은 광고를 시청해주세요</p>
-        
-        <div className="bg-gray-100 rounded-lg mb-4" style={{ minHeight: '250px' }}>
-          <GoogleAd 
-            slot="6119841043"
-            format="auto"
-            responsive={true}
-          />
-          {!adWatched && (
-            <div className="text-center mt-2">
-              <p className="text-sm text-gray-600">{adCountdown}초 후 건너뛸 수 있습니다</p>
-            </div>
-          )}
-        </div>
-
-        {adWatched ? (
-          <button
-            onClick={() => setCurrentStep('results')}
-            className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg font-semibold"
-          >
-            결과 보기
-          </button>
-        ) : (
-          <div className="text-gray-500">광고 시청 중... {adCountdown}초</div>
-        )}
-      </div>
-    </div>
-  );
 
   const ResultsPage = () => {
     if (!analysisResults) return <div>결과를 불러오는 중...</div>;
 
     const getScoreColor = (score) => {
-      if (score > 0) return 'from-blue-500 to-blue-600';
-      return 'from-orange-500 to-orange-600';
+      if (score > 50) return 'from-green-400 to-green-600';
+      if (score > 0) return 'from-blue-400 to-blue-600';
+      if (score > -50) return 'from-orange-400 to-orange-600';
+      return 'from-red-400 to-red-600';
+    };
+
+    const getScoreDescription = (key, score) => {
+      const absScore = Math.abs(score);
+      if (key === 'brightness') {
+        return score > 0 
+          ? `밝고 경쾌한 음색 (+${score.toFixed(1)})` 
+          : `깊고 차분한 음색 (${score.toFixed(1)})`;
+      } else if (key === 'thickness') {
+        return score > 0 
+          ? `풍성하고 두꺼운 음색 (+${score.toFixed(1)})` 
+          : `가볍고 민첩한 음색 (${score.toFixed(1)})`;
+      } else if (key === 'loudness') {
+        return score > 0 
+          ? `파워풀한 음량 (+${score.toFixed(1)})` 
+          : `섬세한 음량 컨트롤 (${score.toFixed(1)})`;
+      } else if (key === 'clarity') {
+        return score > 0 
+          ? `또렷한 발음과 전달력 (+${score.toFixed(1)})` 
+          : `부드러운 발성 (${score.toFixed(1)})`;
+      }
+      return `${score.toFixed(1)}`;
+    };
+
+    // 새로운 API 응답 형식에 대응
+    const scores = analysisResults.scores || analysisResults.mbti?.scores || {
+      brightness: 0, thickness: 0, loudness: 0, clarity: 0
     };
 
     return (
-      <div className="min-h-screen bg-gray-50 p-4">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-4">
         <div className="max-w-4xl mx-auto">
-          <div className="bg-white rounded-xl shadow-lg p-8 mb-6">
-            <h2 className="text-3xl font-bold text-center mb-8">분석 결과</h2>
+          <div className="bg-white rounded-xl shadow-lg p-8 mb-6 border border-gray-100">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4">
+                보컬 분석 결과
+              </h2>
+              
+              {/* 엔진 및 신뢰도 정보 */}
+              <div className="flex justify-center items-center gap-4 mb-6">
+                {analysisResults.engine && (
+                  <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                    analysisResults.engine === 'studio' 
+                      ? 'bg-purple-100 text-purple-800' 
+                      : 'bg-blue-100 text-blue-800'
+                  }`}>
+                    {analysisResults.engine === 'studio' ? '🎚️ Studio 엔진' : '📱 Lite 엔진'}
+                  </div>
+                )}
+                
+                {analysisResults.confidence_badge && (
+                  <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                    analysisResults.confidence_badge === 'high' 
+                      ? 'bg-green-100 text-green-800'
+                      : analysisResults.confidence_badge === 'medium'
+                      ? 'bg-yellow-100 text-yellow-800'
+                      : 'bg-red-100 text-red-800'
+                  }`}>
+                    {analysisResults.confidence_message || 
+                     (analysisResults.confidence_badge === 'high' ? '높은 신뢰도' : 
+                      analysisResults.confidence_badge === 'medium' ? '보통 신뢰도' : '낮은 신뢰도')}
+                  </div>
+                )}
+              </div>
+
+              {/* 경고 메시지 */}
+              {analysisResults.warning && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6 flex items-center">
+                  <AlertCircle className="w-5 h-5 text-yellow-600 mr-2" />
+                  <span className="text-yellow-800">{analysisResults.warning}</span>
+                </div>
+              )}
+
+              {analysisResults.isDemo && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 flex items-center">
+                  <AlertCircle className="w-5 h-5 text-blue-600 mr-2" />
+                  <span className="text-blue-800">데모 모드로 동작 중입니다.</span>
+                </div>
+              )}
+            </div>
             
-            {analysisResults.isDemo && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6 flex items-center">
-                <AlertCircle className="w-5 h-5 text-yellow-600 mr-2" />
-                <span className="text-yellow-800">데모 결과입니다.</span>
+            {/* MBTI 스타일 결과 (맨 위로) */}
+            {analysisResults.mbti && (
+              <div className="mb-8">
+                <h3 className="text-xl font-semibold text-center mb-4">보컬 타입</h3>
+                <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-6 text-center">
+                  <div className="text-4xl mb-2">{analysisResults.mbti.typeIcon || '🎤'}</div>
+                  <h4 className="text-xl font-bold text-gray-800 mb-2">
+                    {analysisResults.mbti.typeName || analysisResults.mbti.type_code}
+                  </h4>
+                  <p className="text-gray-600 mb-4">
+                    {analysisResults.mbti.description}
+                  </p>
+                  
+                  {analysisResults.mbti.characteristics && (
+                    <div className="text-sm text-gray-700">
+                      <div className="font-semibold mb-2">주요 특성:</div>
+                      <div className="flex flex-wrap gap-2 justify-center">
+                        {analysisResults.mbti.characteristics.map((char, index) => (
+                          <span key={index} className="bg-white px-3 py-1 rounded-full text-xs">
+                            {char}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
-            <div className="text-center mb-8">
-              <div className="text-6xl mb-2">{analysisResults.mbti?.typeIcon}</div>
-              <h3 className="text-2xl font-bold text-gray-800 mb-2">{analysisResults.mbti?.typeName}</h3>
-              <p className="text-gray-600">{analysisResults.mbti?.description}</p>
-            </div>
-            
+            {/* 4축 분석 결과 */}
             <div className="mb-8">
-              <h3 className="text-2xl font-bold text-center mb-6">4축 보컬 분석</h3>
+              <h3 className="text-2xl font-bold text-center mb-6">4축 보컬 특성 분석</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {analysisResults.mbti?.scores && Object.entries(analysisResults.mbti.scores).map(([key, score]) => (
-                  <div key={key} className="text-center p-4 border border-gray-200 rounded-lg">
-                  <h3 className="font-semibold mb-4 text-lg">
-                    {key === 'brightness' && '밝기'}
-                    {key === 'thickness' && '두께'}
-                    {key === 'clarity' && '선명도'}
-                    {key === 'power' && '음압'}
-                  </h3>
-                  <div className="relative mb-4">
-                    <div className="w-full bg-gray-200 rounded-full h-6 relative overflow-hidden">
-                      <div className="absolute left-1/2 top-0 h-full w-0.5 bg-gray-400 z-10"></div>
-                      <div 
-                        className={`absolute h-6 bg-gradient-to-r ${getScoreColor(score)} transition-all duration-1000`}
-                        style={{ 
-                          width: `${Math.abs(score)/2}%`,
-                          left: score < 0 ? `${50 - Math.abs(score)/2}%` : '50%',
-                          borderRadius: score < 0 ? '9999px 0 0 9999px' : '0 9999px 9999px 0'
-                        }}
-                      ></div>
+                {[
+                  { key: 'brightness', label: '밝기', icon: '☀️' },
+                  { key: 'thickness', label: '두께', icon: '🎵' },
+                  { key: 'loudness', label: '음압', icon: '🔊' },
+                  { key: 'clarity', label: '선명도', icon: '💎' }
+                ].map(({ key, label, icon }) => {
+                  const score = scores[key] || 0;
+                  return (
+                    <div key={key} className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+                      <div className="text-center mb-4">
+                        <div className="text-2xl mb-2">{icon}</div>
+                        <h4 className="font-semibold text-lg text-gray-800">{label}</h4>
+                        <p className="text-sm text-gray-600 mt-1">
+                          {getScoreDescription(key, score)}
+                        </p>
+                      </div>
+                      <div className="relative">
+                        <div className="w-full bg-gray-200 rounded-full h-4 relative overflow-hidden">
+                          <div className="absolute left-1/2 top-0 h-full w-0.5 bg-gray-400 z-10"></div>
+                          <div 
+                            className={`absolute h-4 bg-gradient-to-r ${getScoreColor(score)} transition-all duration-1000 rounded-full`}
+                            style={{ 
+                              width: `${Math.min(Math.abs(score)/2, 50)}%`,
+                              left: score < 0 ? `${Math.max(50 - Math.abs(score)/2, 0)}%` : '50%'
+                            }}
+                          ></div>
+                        </div>
+                        <div className="flex justify-between text-xs text-gray-500 mt-1">
+                          <span>-100</span>
+                          <span>0</span>
+                          <span>+100</span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="text-center mt-2">
-                      <span className="text-lg font-bold">{Math.round(score)}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                  );
+                })}
               </div>
             </div>
 
-            {(analysisResults.youtubeVideos && analysisResults.youtubeVideos.length > 0) ? (
+            {/* 품질 정보 */}
+            {analysisResults.quality && (
               <div className="mb-8">
-                <h3 className="text-2xl font-bold text-center mb-6">🎯 추천 YouTube 강의</h3>
+                <h3 className="text-xl font-semibold text-center mb-4">녹음 품질 분석</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="bg-gray-50 rounded-lg p-4 text-center">
+                    <div className="text-sm text-gray-600">음량 (LUFS)</div>
+                    <div className="text-lg font-bold">{analysisResults.quality.lufs?.toFixed(1)}</div>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-4 text-center">
+                    <div className="text-sm text-gray-600">신호대잡음비</div>
+                    <div className="text-lg font-bold">{analysisResults.quality.snr?.toFixed(1)}dB</div>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-4 text-center">
+                    <div className="text-sm text-gray-600">클리핑</div>
+                    <div className="text-lg font-bold">{analysisResults.quality.clipping_percent?.toFixed(1)}%</div>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-4 text-center">
+                    <div className="text-sm text-gray-600">무음 구간</div>
+                    <div className="text-lg font-bold">{analysisResults.quality.silence_percent?.toFixed(1)}%</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* YouTube 추천 섹션 */}
+            <div className="mb-8">
+              <h3 className="text-2xl font-bold text-center mb-6">🎯 맞춤형 보컬 트레이닝</h3>
+              
+              {/* API에서 받은 YouTube 비디오가 있으면 표시 */}
+              {analysisResults.youtube_videos && analysisResults.youtube_videos.length > 0 ? (
                 <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-6">
                   <p className="text-gray-700 mb-6 text-center">
-                    당신의 음성 특성 개선을 위한 맞춤 강의 6개
+                    분석 결과를 바탕으로 선별한 맞춤형 보컬 강의
                   </p>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {analysisResults.youtubeVideos.map((video, index) => (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {analysisResults.youtube_videos.map((video, index) => (
                       <a
                         key={index}
                         href={video.url}
@@ -807,50 +1268,113 @@ const VocalAnalysisPlatform = () => {
                             className="w-full h-full object-cover"
                           />
                           <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-opacity duration-200 flex items-center justify-center">
-                            <svg className="w-16 h-16 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                            <svg className="w-12 h-12 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M8 5v14l11-7z"/>
                             </svg>
                           </div>
                         </div>
                         <div className="p-4">
-                          <h4 className="font-semibold text-gray-800 line-clamp-2 mb-2">
+                          <h4 className="font-semibold text-gray-800 line-clamp-2 mb-2 text-sm">
                             {video.title}
                           </h4>
-                          <p className="text-sm text-gray-600">
+                          <p className="text-xs text-gray-600">
                             {video.channelTitle}
                           </p>
                         </div>
                       </a>
                     ))}
                   </div>
-                </div>
-              </div>
-            ) : analysisResults.mbti?.youtubeKeywords && (
-              <div className="mb-8">
-                <h3 className="text-2xl font-bold text-center mb-6">🎯 추천 YouTube 검색어</h3>
-                <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-6">
-                  <p className="text-gray-700 mb-4 text-center">
-                    당신의 가장 낮은 점수 축을 개선하기 위한 추천 검색어
-                  </p>
-                  <div className="flex flex-wrap gap-3 justify-center">
-                    {analysisResults.mbti.youtubeKeywords.map((keyword, index) => (
-                      <a
-                        key={index}
-                        href={`https://www.youtube.com/results?search_query=${encodeURIComponent(keyword)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center px-4 py-2 bg-white rounded-full shadow-md hover:shadow-lg transition-shadow duration-200 hover:scale-105 transform"
-                      >
-                        <svg className="w-5 h-5 mr-2 text-red-600" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-                        </svg>
-                        <span className="text-gray-700 font-medium">{keyword}</span>
-                      </a>
-                    ))}
+                  
+                  <div className="mt-6 p-4 bg-white rounded-lg border-l-4 border-purple-400">
+                    <div className="flex items-start">
+                      <div className="text-purple-400 mr-3 mt-1">💡</div>
+                      <div>
+                        <h4 className="font-semibold text-gray-800 mb-1">개선 포인트</h4>
+                        <p className="text-sm text-gray-600">
+                          {(() => {
+                            const lowestScore = Math.min(...Object.values(scores));
+                            const lowestAxis = Object.entries(scores).find(([key, value]) => value === lowestScore)?.[0];
+                            
+                            const improvements = {
+                              brightness: '음색의 밝기를 개선하면 더욱 경쾌하고 활기찬 인상을 줄 수 있습니다.',
+                              thickness: '음색의 두께감을 보강하면 더욱 풍성하고 존재감 있는 목소리가 됩니다.',
+                              loudness: '음압과 발성력을 기르면 더욱 파워풀하고 임팩트 있는 가창이 가능합니다.',
+                              clarity: '발음과 선명도를 개선하면 가사 전달력이 크게 향상됩니다.'
+                            };
+                            
+                            return improvements[lowestAxis] || '꾸준한 연습으로 보컬 실력을 향상시킬 수 있습니다.';
+                          })()}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              ) : (
+                /* 폴백: API에서 YouTube 비디오가 없으면 키워드 검색 링크 표시 */
+                <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-6">
+                  <p className="text-gray-700 mb-6 text-center">
+                    분석 결과를 바탕으로 가장 개선이 필요한 영역을 위한 추천 검색어
+                  </p>
+                  <div className="flex flex-wrap gap-3 justify-center">
+                    {(() => {
+                      // 가장 낮은 점수의 축 찾기
+                      const lowestScore = Math.min(...Object.values(scores));
+                      const lowestAxis = Object.entries(scores).find(([key, value]) => value === lowestScore)?.[0];
+                      
+                      // 각 축별 추천 키워드
+                      const keywordMapping = {
+                        brightness: ['포먼트 조절 보컬', '음색 밝기 훈련', '공명 위치 보컬', '밝은 음색 만들기'],
+                        thickness: ['믹스 보이스 훈련', '성구 전환 연습', '두꺼운 음색', '흉성 헤드성 연결'],
+                        loudness: ['호흡법 보컬 훈련', '복식호흡 발성', '성량 키우기', '파워풀한 발성'],
+                        clarity: ['딕션 훈련', '발음 명료도', '성대 내전 훈련', '선명한 발성']
+                      };
+                      
+                      const keywords = keywordMapping[lowestAxis] || ['보컬 훈련', '발성 연습', '노래 잘하는법', '보컬 기초'];
+                      
+                      return keywords.map((keyword, index) => (
+                        <a
+                          key={index}
+                          href={`https://www.youtube.com/results?search_query=${encodeURIComponent(keyword)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center px-4 py-2 bg-white rounded-full shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 transform"
+                        >
+                          <svg className="w-5 h-5 mr-2 text-red-600" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                          </svg>
+                          <span className="text-gray-700 font-medium">{keyword}</span>
+                        </a>
+                      ));
+                    })()}
+                  </div>
+                  
+                  <div className="mt-6 p-4 bg-white rounded-lg border-l-4 border-purple-400">
+                    <div className="flex items-start">
+                      <div className="text-purple-400 mr-3 mt-1">💡</div>
+                      <div>
+                        <h4 className="font-semibold text-gray-800 mb-1">개선 포인트</h4>
+                        <p className="text-sm text-gray-600">
+                          {(() => {
+                            const lowestScore = Math.min(...Object.values(scores));
+                            const lowestAxis = Object.entries(scores).find(([key, value]) => value === lowestScore)?.[0];
+                            
+                            const improvements = {
+                              brightness: '음색의 밝기를 개선하면 더욱 경쾌하고 활기찬 인상을 줄 수 있습니다.',
+                              thickness: '음색의 두께감을 보강하면 더욱 풍성하고 존재감 있는 목소리가 됩니다.',
+                              loudness: '음압과 발성력을 기르면 더욱 파워풀하고 임팩트 있는 가창이 가능합니다.',
+                              clarity: '발음과 선명도를 개선하면 가사 전달력이 크게 향상됩니다.'
+                            };
+                            
+                            return improvements[lowestAxis] || '꾸준한 연습으로 보컬 실력을 향상시킬 수 있습니다.';
+                          })()}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
 
             <div className="text-center">
               <button
@@ -858,12 +1382,10 @@ const VocalAnalysisPlatform = () => {
                   setCurrentStep('landing');
                   setAudioFile(null);
                   setAnalysisResults(null);
-                  setAdWatched(false);
-                  setAdCountdown(15);
                 }}
-                className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-semibold"
+                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-8 py-3 rounded-xl font-semibold transition-all duration-300 hover:scale-105 shadow-lg"
               >
-                다시 테스트하기
+                다시 분석하기
               </button>
             </div>
           </div>
@@ -874,9 +1396,9 @@ const VocalAnalysisPlatform = () => {
 
   return (
     <div>
-      <div className="fixed top-4 left-4 bg-white p-3 rounded-lg shadow-md border z-50">
-        <div className="text-sm">
-          <div className="font-semibold mb-1">로그인 상태:</div>
+      <div className="fixed bottom-4 right-4 bg-white p-2 rounded-lg shadow-md border z-50 text-xs max-w-xs">
+        <div className="text-xs">
+          <div className="font-semibold mb-1 text-xs">로그인 상태:</div>
           {(() => {
             if (firebaseUser) {
               return (
@@ -919,7 +1441,6 @@ const VocalAnalysisPlatform = () => {
       {currentStep === 'login' && <LoginPage />}
       {currentStep === 'record' && <RecordPage />}
       {currentStep === 'analysis' && <AnalysisPage />}
-      {currentStep === 'ad' && <AdPage />}
       {currentStep === 'results' && <ResultsPage />}
     </div>
   );

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>로그인 테스트</title>
+    <script src="https://developers.kakao.com/sdk/js/kakao.js"></script>
+</head>
+<body>
+    <h1>로그인 테스트</h1>
+    
+    <button id="google-login">구글 로그인 테스트</button>
+    <button id="kakao-login">카카오 로그인 테스트</button>
+    
+    <div id="result"></div>
+
+    <script type="module">
+        // Firebase 초기화
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js';
+        import { getAuth, signInWithPopup, GoogleAuthProvider } from 'https://www.gstatic.com/firebasejs/9.0.0/firebase-auth.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyC7Igb5sDzPeSU19A6b5xazhnj4WufFuG8",
+            authDomain: "songlab-v2.firebaseapp.com",
+            projectId: "songlab-v2",
+            storageBucket: "songlab-v2.firebasestorage.app",
+            messagingSenderId: "250128010188",
+            appId: "1:250128010188:web:62d0d11aa90501db022b69"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const googleProvider = new GoogleAuthProvider();
+
+        // 카카오 초기화
+        if (window.Kakao && !window.Kakao.isInitialized()) {
+            window.Kakao.init('2ae9be2d22fc1649379d85aca7b8cd4c');
+            console.log('카카오 SDK 초기화 완료');
+        }
+
+        const resultDiv = document.getElementById('result');
+
+        // 구글 로그인 테스트
+        document.getElementById('google-login').addEventListener('click', async () => {
+            try {
+                resultDiv.innerHTML = '구글 로그인 시도 중...';
+                const result = await signInWithPopup(auth, googleProvider);
+                resultDiv.innerHTML = `구글 로그인 성공: ${result.user.displayName} (${result.user.email})`;
+                console.log('Google login success:', result.user);
+            } catch (error) {
+                resultDiv.innerHTML = `구글 로그인 실패: ${error.message}`;
+                console.error('Google login error:', error);
+            }
+        });
+
+        // 카카오 로그인 테스트
+        document.getElementById('kakao-login').addEventListener('click', () => {
+            if (!window.Kakao || !window.Kakao.Auth) {
+                resultDiv.innerHTML = '카카오 SDK가 로드되지 않았습니다';
+                return;
+            }
+
+            resultDiv.innerHTML = '카카오 로그인 시도 중...';
+
+            // 사용 가능한 메소드 확인
+            const authMethods = Object.keys(window.Kakao.Auth);
+            console.log('카카오 사용 가능한 메소드:', authMethods);
+
+            try {
+                window.Kakao.Auth.login({
+                    success: function(response) {
+                        console.log('카카오 로그인 성공:', response);
+                        resultDiv.innerHTML = `카카오 로그인 성공: ${JSON.stringify(response)}`;
+                    },
+                    fail: function(error) {
+                        console.error('카카오 로그인 실패:', error);
+                        resultDiv.innerHTML = `카카오 로그인 실패: ${JSON.stringify(error)}`;
+                    }
+                });
+            } catch (error) {
+                console.error('카카오 로그인 에러:', error);
+                resultDiv.innerHTML = `카카오 로그인 에러: ${error.message}`;
+            }
+        });
+    </script>
+</body>
+</html>

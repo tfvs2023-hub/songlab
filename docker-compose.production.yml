@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  # PostgreSQL 데이터베이스
+  postgres:
+    image: postgres:15
+    container_name: songlab_db
+    environment:
+      POSTGRES_DB: songlab
+      POSTGRES_USER: songlab_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    restart: unless-stopped
+
+  # Redis 캐시 (선택)
+  redis:
+    image: redis:7-alpine
+    container_name: songlab_cache
+    ports:
+      - "127.0.0.1:6379:6379"
+    restart: unless-stopped
+
+  # 백업 (선택)
+  backup:
+    image: prodrigestivill/postgres-backup-local
+    container_name: songlab_backup
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: songlab
+      POSTGRES_USER: songlab_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      SCHEDULE: "@daily"
+      BACKUP_KEEP_DAYS: 7
+    volumes:
+      - ./backups:/backups
+    depends_on:
+      - postgres
+
+volumes:
+  postgres_data:

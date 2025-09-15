@@ -1,0 +1,24 @@
+# Systemd 서비스 파일 (/etc/systemd/system/songlab.service)
+
+[Unit]
+Description=SongLab Vocal Analysis API
+After=network.target
+
+[Service]
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/songlab_advanced
+Environment="PATH=/home/ubuntu/.local/bin:/usr/bin"
+ExecStart=/home/ubuntu/.local/bin/gunicorn main_v2:app \
+          --workers 4 \
+          --worker-class uvicorn.workers.UvicornWorker \
+          --bind 127.0.0.1:8002 \
+          --timeout 120 \
+          --access-logfile /var/log/songlab/access.log \
+          --error-logfile /var/log/songlab/error.log
+
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

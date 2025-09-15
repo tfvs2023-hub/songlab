@@ -42,17 +42,28 @@ export const initializeKakao = () => {
 // 카카오 로그인 상태 확인
 export const getKakaoLoginStatus = () => {
   try {
+    // 개발 환경에서 데모 토큰 확인
+    if (kakaoAccessToken && kakaoAccessToken.startsWith('demo_token_')) {
+      return true;
+    }
+    
     // 저장된 토큰 확인
     if (kakaoAccessToken) {
       return true;
     }
     
-    // SDK 토큰도 확인
-    if (window.Kakao && window.Kakao.Auth) {
-      const sdkToken = window.Kakao.Auth.getAccessToken();
-      if (sdkToken) {
-        kakaoAccessToken = sdkToken;
-        return true;
+    // SDK 토큰도 확인 (프로덕션에서만)
+    if (window.Kakao && window.Kakao.Auth && 
+        window.location.hostname !== 'localhost' && 
+        !window.location.hostname.startsWith('192.168')) {
+      try {
+        const sdkToken = window.Kakao.Auth.getAccessToken();
+        if (sdkToken) {
+          kakaoAccessToken = sdkToken;
+          return true;
+        }
+      } catch (sdkError) {
+        console.log('SDK 토큰 확인 실패:', sdkError.message);
       }
     }
     
@@ -74,6 +85,32 @@ export const signInWithKakao = () => {
   return new Promise((resolve, reject) => {
     if (!window.Kakao || !window.Kakao.Auth) {
       reject(new Error('카카오 SDK가 로드되지 않았습니다'));
+      return;
+    }
+    
+    // KOE009 에러 체크 및 우회
+    if (window.location.hostname === 'localhost' || window.location.hostname.startsWith('192.168')) {
+      console.warn('개발 환경에서 카카오 로그인 제한. 데모 사용자로 로그인합니다.');
+      // 데모 사용자 정보
+      const demoUser = {
+        access_token: 'demo_token_' + Date.now(),
+        refresh_token: 'demo_refresh_' + Date.now(),
+        expires_in: 3600,
+        profile: {
+          nickname: '테스트 사용자',
+          profile_image: null,
+          thumbnail_image: null
+        }
+      };
+      
+      kakaoAccessToken = demoUser.access_token;
+      kakaoUserInfo = demoUser;
+      
+      if (statusUpdateCallback) {
+        statusUpdateCallback();
+      }
+      
+      setTimeout(() => resolve(demoUser), 100);
       return;
     }
 
@@ -186,6 +223,19 @@ export const signInWithKakao = () => {
     // 모든 방법 실패
     reject(new Error('사용 가능한 카카오 로그인 메소드가 없습니다: ' + authMethods.join(', ')));
   });
+};
+
+// 카카오 사용자 정보 가져오기
+export const getKakaoUserInfo = () => {
+  if (kakaoUserInfo) {
+    return {
+      nickname: kakaoUserInfo.profile?.nickname || '테스트 사용자',
+      profile_image: kakaoUserInfo.profile?.profile_image || null,
+      thumbnail_image: kakaoUserInfo.profile?.thumbnail_image || null,
+      isDemoUser: kakaoAccessToken?.startsWith('demo_token_') || false
+    };
+  }
+  return null;
 };
 
 // 로그아웃

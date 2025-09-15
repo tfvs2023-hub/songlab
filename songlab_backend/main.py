@@ -1,7 +1,7 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from voice_analyzer import VoiceAnalyzer
+from voice_analyzer_original import VoiceAnalyzer
 from youtube_service import YouTubeService
 import logging
 
@@ -37,8 +37,15 @@ async def analyze_voice(file: UploadFile = File(...)):
         logger.info(f"Analyzing audio file: {file.filename}")
         scores = analyzer.analyze_audio(audio_data)
         
-        # Generate MBTI-style result
+        # Generate MBTI-style result with high note potential
         mbti_result = analyzer.generate_mbti_style(scores)
+        
+        # Add high note potential if available
+        if 'potential_high_note' in scores:
+            mbti_result['potentialNote'] = scores['potential_high_note']
+            logger.info(f"High note potential: {scores['potential_high_note']}")
+        else:
+            logger.warning("No potential_high_note found in scores")
         
         # Get YouTube recommendations based on keywords
         youtube_videos = []
