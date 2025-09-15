@@ -4,7 +4,7 @@ import { getAuth, signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/
 // Firebase 설정
 const firebaseConfig = {
   apiKey: "AIzaSyC7Igb5sDzPeSU19A6b5xazhnj4WufFuG8",
-  authDomain: "songlab-v2.firebaseapp.com",
+  authDomain: "www.songlab.kr",
   projectId: "songlab-v2",
   storageBucket: "songlab-v2.firebasestorage.app",
   messagingSenderId: "250128010188",
@@ -23,8 +23,19 @@ let kakaoUserInfo = null;
 const googleProvider = new GoogleAuthProvider();
 export const signInWithGoogle = async () => {
   try {
-    const result = await signInWithPopup(auth, googleProvider);
-    return result.user;
+    // 모바일 환경 감지
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    
+    if (isMobile) {
+      // 모바일에서는 redirect 방식 사용
+      const { signInWithRedirect } = await import('firebase/auth');
+      await signInWithRedirect(auth, googleProvider);
+      return null; // 리다이렉트 후 처리
+    } else {
+      // PC에서는 popup 방식 사용
+      const result = await signInWithPopup(auth, googleProvider);
+      return result.user;
+    }
   } catch (error) {
     console.error('Google 로그인 오류:', error);
     throw error;
@@ -34,7 +45,7 @@ export const signInWithGoogle = async () => {
 // 카카오 초기화
 export const initializeKakao = () => {
   if (window.Kakao && !window.Kakao.isInitialized()) {
-    window.Kakao.init('2ae9be2d22fc1649379d85aca7b8cd4c');
+    window.Kakao.init('2ae9be2d22fc16493979d85aca7b8cd4c');
     console.log('카카오 초기화 완료');
   }
 };

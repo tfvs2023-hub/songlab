@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Mic, Upload, Youtube, Sparkles, Volume2, AlertCircle } from 'lucide-react';
 import { useAuthState } from 'react-firebase-hooks/auth';
+import { getRedirectResult } from 'firebase/auth';
 import { 
   auth, 
   signInWithGoogle, 
@@ -56,6 +57,16 @@ const VocalAnalysisPlatform = () => {
     initializeKakao();
     setKakaoStatusUpdateCallback(forceStatusUpdate);
     checkBackendHealth();
+    
+    // 리다이렉트 로그인 결과 처리
+    getRedirectResult(auth).then((result) => {
+      if (result && result.user) {
+        console.log('리다이렉트 로그인 성공:', result.user);
+        setCurrentStep('record');
+      }
+    }).catch((error) => {
+      console.error('리다이렉트 로그인 에러:', error);
+    });
   }, []);
 
   useEffect(() => {

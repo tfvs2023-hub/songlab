@@ -9,6 +9,13 @@
    <meta property="og:title" content="SongLab - 보컬 분석 AI">
    <meta property="og:description" content="AI 기반 보컬 분석 플랫폼">
    <meta property="og:url" content="https://www.songlab.kr">
+   
+   <!-- www 없는 도메인에서 www로 리다이렉션 -->
+   <script>
+     if (window.location.hostname === 'songlab.kr') {
+       window.location.replace('https://www.songlab.kr' + window.location.pathname + window.location.search);
+     }
+   </script>
       
    <script src="https://developers.kakao.com/sdk/js/kakao.js"></script>
  </head>
