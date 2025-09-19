@@ -1,0 +1,51 @@
+# Advanced Vocal Analysis - Docker Compose
+version: '3.8'
+
+services:
+  vocal-analyzer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: advanced-vocal-analyzer
+    ports:
+      - "8000:8000"
+    volumes:
+      - "./audio_data:/app/audio_data"  # 오디오 파일 마운트
+      - "./logs:/app/logs"              # 로그 마운트
+    environment:
+      - PYTHONUNBUFFERED=1
+      - TZ=Asia/Seoul
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+        reservations:
+          cpus: '1.0' 
+          memory: 2G
+
+  # 개발용 Jupyter 환경 (옵션)
+  jupyter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vocal-analyzer-dev
+    ports:
+      - "8888:8888"
+    volumes:
+      - "./:/app"
+      - "./audio_data:/app/audio_data"
+    environment:
+      - PYTHONUNBUFFERED=1
+    command: >
+      bash -c "pip install jupyter ipykernel matplotlib seaborn &&
+               jupyter notebook --ip=0.0.0.0 --port=8888 --no-browser --allow-root"
+    profiles:
+      - dev
