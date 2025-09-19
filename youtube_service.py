@@ -116,6 +116,15 @@ class YouTubeService:
             'url': f"https://www.youtube.com/results?search_query={query}"
         }
 
+    @property
+    def youtube(self):
+        """Legacy accessor kept for backward compatibility."""
+        try:
+            return self._ensure_client()
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("YouTube client unavailable via legacy accessor: %s", exc)
+            return None
+
     @staticmethod
     def _score_band(score: float) -> str:
         if score <= -60:
