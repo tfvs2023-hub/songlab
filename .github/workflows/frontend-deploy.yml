@@ -1,0 +1,60 @@
+name: Deploy Frontend (sync frontend_temp)
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'frontend_temp/**'
+
+jobs:
+  deploy-frontend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Ensure remote directory exists and has proper ownership
+      - name: Prepare remote directory
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || '22' }}
+          script: |
+            set -e
+            TARGET_DIR=/home/tfvs2023/app/dist
+            sudo mkdir -p "$TARGET_DIR"
+            sudo chown -R ${{ secrets.SSH_USER }}: $TARGET_DIR || true
+
+      # Upload frontend files to remote server using SCP
+      - name: Upload frontend files via SCP
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || '22' }}
+          source: "frontend_temp/*"
+          target: "/home/tfvs2023/app/dist"
+
+      # Reload nginx (or any webserver) so new files are served
+      - name: Reload nginx on server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || '22' }}
+          script: |
+            set -e
+            echo "Reloading nginx..."
+            sudo systemctl reload nginx || true
+
+# Required repository secrets (set these in GitHub Settings -> Secrets):
+# - SSH_HOST: your.server.ip.or.hostname (e.g. 34.47.99.211)
+# - SSH_USER: username to connect as (e.g. ubuntu)
+# - SSH_PRIVATE_KEY: private key (PEM) for the SSH_USER
+# - REMOTE_FRONTEND_DIR: path on server where files should be copied (e.g. /var/www/songlab)
+# Optional: SSH_PORT (defaults to 22)
