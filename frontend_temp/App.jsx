@@ -18,8 +18,8 @@ const VocalAnalysisPlatform = () => {
   const [analysisResults, setAnalysisResults] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  // API URL configuration
-  const API_URL = import.meta.env.VITE_API_URL || '';
+  // API URL configuration: prefer VITE_API_URL, otherwise fall back to runtime origin
+  const API_URL = (import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL.trim()) || window.location.origin;
   const [backendStatus, setBackendStatus] = useState('checking');
   
   const mediaRecorderRef = useRef(null);
