@@ -1107,11 +1107,21 @@ const AnalysisPage = () => {
                         <div className="text-center">
                           <div className="mb-3">
                             <img 
-                              src={video.thumbnail} 
+                              src={(() => {
+                                try {
+                                  const thumb = video.thumbnail || `https://i.ytimg.com/vi/${video.videoId}/hqdefault.jpg`;
+                                  const u = new URL(thumb);
+                                  return u.href;
+                                } catch (err) {
+                                  return `https://i.ytimg.com/vi/${video.videoId}/hqdefault.jpg`;
+                                }
+                              })()}
                               alt={video.title}
                               className="w-full h-24 object-cover rounded-lg mb-2"
                               onError={(e) => {
-                                e.target.style.display = 'none';
+                                // replace with YouTube default thumbnail on load error
+                                e.currentTarget.onerror = null;
+                                e.currentTarget.src = `https://i.ytimg.com/vi/${video.videoId}/hqdefault.jpg`;
                               }}
                             />
                             <h4 className="font-bold text-gray-800 mb-1 text-sm leading-tight line-clamp-2">
