@@ -1,12 +1,3 @@
-    // 음역 분석에 따른 영역 계산
-    const needsImprovement = Object.entries(scores)
-      .filter(([key, value]) => value < -20)
-      .sort(([, a], [, b]) => a - b);
-
-    const strengths = Object.entries(scores)
-      .filter(([key, value]) => value > 20)
-      .sort(([, a], [, b]) => b - a);
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Mic, Upload, Youtube, Sparkles, Volume2, AlertCircle } from 'lucide-react';
 
@@ -933,6 +924,23 @@ const AnalysisPage = () => {
       const youtubeVideos = analysisResults?.youtube_videos || [];
 
       if (!analysisResults) return <div>결과를 불러오는 중...</div>;
+
+      // 안전한 scores 정의 (여러 응답 포맷 대비)
+      const scores = analysisResults.scores || analysisResults.mbti?.scores || {
+        brightness: 0,
+        thickness: 0,
+        loudness: 0,
+        clarity: 0
+      };
+
+      // 음역 분석에 따른 영역 계산
+      const needsImprovement = Object.entries(scores)
+        .filter(([key, value]) => value < -20)
+        .sort(([, a], [, b]) => a - b);
+
+      const strengths = Object.entries(scores)
+        .filter(([key, value]) => value > 20)
+        .sort(([, a], [, b]) => b - a);
 
       const clampScore = (value) => {
         const numeric = Number(value);

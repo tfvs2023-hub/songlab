@@ -84,8 +84,12 @@ async def analyze_voice_auto(
     start_time = time.time()
     
     try:
-        # 파일 타입 검증
-        if not file.content_type or not file.content_type.startswith('audio/'):
+        # 파일 타입 검증: 일부 clients (curl) may omit content-type; allow based on filename
+        allowed_exts = ('.wav', '.mp3', '.flac', '.ogg', '.m4a')
+        content_type_ok = bool(file.content_type and file.content_type.startswith('audio/'))
+        filename_ok = bool(file.filename and file.filename.lower().endswith(allowed_exts))
+        logger.info(f"Upload content_type={file.content_type} filename={file.filename}")
+        if not content_type_ok and not filename_ok:
             raise HTTPException(
                 status_code=400,
                 detail="Invalid file type. Please upload an audio file."
@@ -207,10 +211,14 @@ async def analyze_voice_auto(
         logger.info(f"{engine_name.capitalize()} analysis complete in {processing_time:.2f}s. Scores: {result['scores']}")
         return response
         
+    except HTTPException:
+        # let FastAPI handle HTTPExceptions (bad request, etc.) so client gets proper status code
+        raise
     except Exception as e:
-        logger.error(f"Error in Lite analysis: {str(e)}")
-        
-        # 실패 시 응답
+        # log full traceback for debugging
+        logger.exception("Unhandled exception during analysis")
+
+        # 실패 시 응답 (keep same shape but include error message)
         return {
             "status": "error",
             "analysis_id": analysis_id,

@@ -17,6 +17,10 @@ class SongLabApp {
         await this.checkLoginStatus();
         await this.loadAuthUrls();
         this.setupDragAndDrop();
+
+        // 런타임 API URL: 빌드 시점에 설정되지 않아도 현재 도메인을 기본값으로 사용
+        this.API_URL = (window.__SONGLAB_API_URL__ && window.__SONGLAB_API_URL__.trim()) || window.location.origin;
+        console.info(`Using API URL: ${this.API_URL}`);
     }
 
     // 이벤트 리스너 설정
@@ -85,33 +89,28 @@ class SongLabApp {
     }
 
     // 파일 처리
-    handleFile(file) {
-        // 파일 검증
-        if (!this.validateFile(file)) {
-            return;
-        }
-
-        this.currentFile = file;
-        this.displayFileInfo(file);
-    }
-
-    // 파일 검증
     validateFile(file) {
         const maxSize = 50 * 1024 * 1024; // 50MB
-        const allowedTypes = ['audio/wav', 'audio/mp3', 'audio/mpeg', 'audio/x-m4a', 'audio/mp4'];
+        const allowedExts = ['.wav', '.mp3', '.m4a', '.flac', '.ogg'];
+        const allowedTypes = ['audio/wav', 'audio/mp3', 'audio/mpeg', 'audio/x-m4a', 'audio/mp4', 'audio/ogg', 'audio/flac'];
         
         if (file.size > maxSize) {
             this.showError('파일 크기가 50MB를 초과합니다.');
             return false;
         }
-        
-        if (!allowedTypes.some(type => file.type.includes(type.split('/')[1]))) {
-            this.showError('지원하지 않는 파일 형식입니다. WAV, MP3, M4A 파일만 지원합니다.');
+
+        // 일부 브라우저/환경에서는 file.type이 비어있을 수 있으므로 파일명 확장자를 검사
+        const nameOk = file.name && allowedExts.some(ext => file.name.toLowerCase().endsWith(ext));
+        const typeOk = file.type && allowedTypes.some(t => file.type.includes(t.split('/')[1]));
+
+        if (!nameOk && !typeOk) {
+            this.showError('지원하지 않는 파일 형식입니다. WAV, MP3, M4A 등을 업로드 해주세요.');
             return false;
         }
-        
+
         return true;
     }
+    
 
     // 파일 정보 표시
     displayFileInfo(file) {
@@ -157,10 +156,14 @@ class SongLabApp {
                 headers['Authorization'] = `Bearer ${localStorage.getItem('songlab_token')}`;
             }
 
-            const response = await fetch('/analyze', {
+            // API 경로는 런타임 API_URL을 사용
+            const apiEndpoint = `${this.API_URL}/api/analyze`;
+            const finalHeaders = Object.assign({}, headers, { 'Accept': 'application/json' });
+
+            const response = await fetch(apiEndpoint, {
                 method: 'POST',
                 body: formData,
-                headers: headers
+                headers: finalHeaders
             });
 
             const result = await response.json();

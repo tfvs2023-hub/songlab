@@ -64,12 +64,22 @@ ENV PYTHONPATH=/usr/local/lib/python3.10/site-packages:$PYTHONPATH
 # 애플리케이션 파일 복사
 COPY . .
 
-# 포트 노출
-EXPOSE 8000
+# Provide unbuffered stdout/stderr for real-time logs
+ENV PYTHONUNBUFFERED=1
 
-# 헬스체크
+# \ud3ec\ud2b8 \ub178\ucd9c (\ubb38\uc11c\uc6a9) - match the default PORT env
+EXPOSE 8080
+
+# 헬스체크 (환경변수 PORT 사용, 기본값 8080)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/api/health || exit 1
+    CMD sh -c 'curl -f http://localhost:${PORT:-8080}/api/health || exit 1'
 
-# 애플리케이션 실행
-CMD ["python3", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Provide a default PORT but allow Cloud Run to override it
+ENV PORT=8080
+
+# Add an entrypoint script that validates PORT and logs environment for debugging
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
+# Use the entrypoint script so environment variables are interpreted at runtime
+ENTRYPOINT ["/bin/sh", "/app/entrypoint.sh"]
