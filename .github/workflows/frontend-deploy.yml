@@ -1,5 +1,4 @@
 name: Deploy Frontend (sync frontend_temp)
-name: Deploy Frontend (sync frontend_temp)
 
 on:
   push:
