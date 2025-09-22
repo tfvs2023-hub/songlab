@@ -9,10 +9,31 @@ on:
 jobs:
   deploy-frontend:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash -l
+    env:
+      TARGET_DIR: /home/tfvs2023/app/dist
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: SSH sanity check
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || '22' }}
+          script: |
+            set -e
+            echo "SSH check: $(date)"
+            id || true
+            whoami || true
+            uname -a || true
+            ls -ld "$TARGET_DIR" || true
 
       # Ensure remote directory exists and has proper ownership
       - name: Prepare remote directory
@@ -52,7 +73,7 @@ jobs:
           source: "frontend_temp.tar.gz"
           target: "/home/tfvs2023/app/"
 
-      - name: Extract and swap frontend on server (atomic)
+      - name: Verify tarball on server
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -61,6 +82,26 @@ jobs:
           port: ${{ secrets.SSH_PORT || '22' }}
           script: |
             set -e
+            TAR=/home/tfvs2023/app/frontend_temp.tar.gz
+            if [ -f "$TAR" ]; then
+              echo "Found tarball on server: $TAR"
+              ls -l "$TAR"
+              if command -v sha256sum >/dev/null 2>&1; then sha256sum "$TAR" || true; fi
+            else
+              echo "ERROR: uploaded tarball not found at $TAR"
+              ls -la /home/tfvs2023/app || true
+              exit 1
+            fi
+
+      - name: Extract and swap frontend on server (atomic)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || '22' }}
+          script: |
+            set -xe
             TAR=/home/tfvs2023/app/frontend_temp.tar.gz
             TARGET_DIR=/home/tfvs2023/app/dist
             TMP_DIR=/home/tfvs2023/app/dist_new
@@ -90,23 +131,26 @@ jobs:
                 sudo mv "$TARGET_DIR" "${TARGET_DIR}_old"
               fi
               sudo mv "$TMP_DIR" "$TARGET_DIR"
-              sudo chown -R ${{ secrets.SSH_USER }}: "$TARGET_DIR"
+              sudo chown -R ${{ secrets.SSH_USER }}: "$TARGET_DIR" || true
 
               # Post-deploy verification: request critical assets from local nginx. If they fail, rollback.
               echo "Validating deployed assets via local HTTP requests"
               set +e
-              curl -sSf -I http://127.0.0.1/style.css > /dev/null
+              curl -sSf -I http://127.0.0.1/style.css -o /tmp/deploy_check_css.out
               CSS_OK=$?
-              curl -sSf -I http://127.0.0.1/script.js > /dev/null
+              curl -sSf -I http://127.0.0.1/script.js -o /tmp/deploy_check_js.out
               JS_OK=$?
               set -e
 
               if [ "$CSS_OK" -ne 0 ]; then
                 echo "ERROR: style.css did not return 200 after deploy — rolling back"
+                echo "--- curl output (style.css) ---"
+                cat /tmp/deploy_check_css.out || true
+                sudo ls -la "$TARGET_DIR" || true
                 sudo rm -rf "$TARGET_DIR" || true
                 if [ -d "${TARGET_DIR}_old" ]; then
                   sudo mv "${TARGET_DIR}_old" "$TARGET_DIR"
-                  sudo chown -R ${{ secrets.SSH_USER }}: "$TARGET_DIR"
+                  sudo chown -R ${{ secrets.SSH_USER }}: "$TARGET_DIR" || true
                 fi
                 exit 1
               fi
@@ -114,6 +158,8 @@ jobs:
               # Optional: warn if script.js missing from HTTP but do not fail deploy
               if [ "$JS_OK" -ne 0 ]; then
                 echo "WARNING: script.js did not return 200 after deploy"
+                echo "--- curl output (script.js) ---"
+                cat /tmp/deploy_check_js.out || true
               fi
 
               # Cleanup: remove very old backups (older than 14 days)
