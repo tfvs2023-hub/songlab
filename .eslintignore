@@ -1,0 +1,3 @@
+node_modules/
+frontend_temp/*.py
+frontend_temp/App_original.jsx

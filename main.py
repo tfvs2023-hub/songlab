@@ -7,9 +7,9 @@ import logging
 import os
 from typing import Dict, List, Optional
 
-from fastapi import FastAPI, UploadFile, File, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 try:
     from advanced_vocal_analyzer import AdvancedVocalAnalyzer  # type: ignore
@@ -20,7 +20,8 @@ else:
     _ADVANCED_ANALYZER_IMPORT_ERROR = None
 
 try:
-    from advanced_vocal_analyzer_no_essentia import AdvancedVocalAnalyzerNoEssentia  # type: ignore
+    from advanced_vocal_analyzer_no_essentia import \
+        AdvancedVocalAnalyzerNoEssentia  # type: ignore
 except Exception as exc:  # pragma: no cover - optional dependency
     AdvancedVocalAnalyzerNoEssentia = None  # type: ignore
     _NO_ESSENTIA_ANALYZER_IMPORT_ERROR = exc
@@ -34,7 +35,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="Advanced Vocal Analysis API",
     description="고급 4축 보컬 분석 시스템 (밝기, 두께, 성대내전, 음압)",
-    version="2.0.0"
+    version="2.0.0",
 )
 
 app.add_middleware(
@@ -67,7 +68,9 @@ def _initialize_analyzer() -> Optional[object]:
         if backend_candidate == "advanced":
             if AdvancedVocalAnalyzer is None:
                 if _ADVANCED_ANALYZER_IMPORT_ERROR is not None:
-                    analyzer_init_errors["advanced"] = repr(_ADVANCED_ANALYZER_IMPORT_ERROR)
+                    analyzer_init_errors["advanced"] = repr(
+                        _ADVANCED_ANALYZER_IMPORT_ERROR
+                    )
                 continue
             try:
                 instance = AdvancedVocalAnalyzer()
@@ -80,7 +83,9 @@ def _initialize_analyzer() -> Optional[object]:
         elif backend_candidate == "no_essentia":
             if AdvancedVocalAnalyzerNoEssentia is None:
                 if _NO_ESSENTIA_ANALYZER_IMPORT_ERROR is not None:
-                    analyzer_init_errors["no_essentia"] = repr(_NO_ESSENTIA_ANALYZER_IMPORT_ERROR)
+                    analyzer_init_errors["no_essentia"] = repr(
+                        _NO_ESSENTIA_ANALYZER_IMPORT_ERROR
+                    )
                 continue
             try:
                 instance = AdvancedVocalAnalyzerNoEssentia()
@@ -91,7 +96,9 @@ def _initialize_analyzer() -> Optional[object]:
                 analyzer_init_errors["no_essentia"] = repr(exc)
                 logger.warning("No-Essentia analyzer init failed: %s", exc)
 
-    logger.error("Unable to initialize analyzer backend. errors=%s", analyzer_init_errors)
+    logger.error(
+        "Unable to initialize analyzer backend. errors=%s", analyzer_init_errors
+    )
     return None
 
 
@@ -115,10 +122,10 @@ async def analyze_voice(file: UploadFile = File(...)):
     """
     try:
         # 파일 타입 검증
-        if not file.content_type or not file.content_type.startswith('audio/'):
+        if not file.content_type or not file.content_type.startswith("audio/"):
             raise HTTPException(
                 status_code=400,
-                detail="Invalid file type. Please upload an audio file."
+                detail="Invalid file type. Please upload an audio file.",
             )
 
         # 분석기 준비
@@ -131,12 +138,16 @@ async def analyze_voice(file: UploadFile = File(...)):
                     "preferred_backend": _ANALYZER_BACKEND_ENV,
                     "backend": analyzer_backend,
                     "errors": dict(analyzer_init_errors),
-                }
+                },
             )
 
         # 오디오 데이터 읽기
         audio_data = await file.read()
-        logger.info("Analyzing audio file '%s' with backend '%s'", file.filename, analyzer_backend)
+        logger.info(
+            "Analyzing audio file '%s' with backend '%s'",
+            file.filename,
+            analyzer_backend,
+        )
 
         # 4축 분석 수행
         scores = active_analyzer.analyze_audio(audio_data)
@@ -147,21 +158,25 @@ async def analyze_voice(file: UploadFile = File(...)):
         result = {
             "status": "success",
             "scores": scores,
-            "gender": scores.get('gender', 'unknown'),
-            "potential_high_note": scores.get('potential_high_note', 'E5'),
+            "gender": scores.get("gender", "unknown"),
+            "potential_high_note": scores.get("potential_high_note", "E5"),
             "mbti": mbti_result,
             "analysis_type": "advanced_4axis",
             "analyzer_backend": analyzer_backend,
-            "success": True
+            "success": True,
         }
 
-        logger.info("Analysis complete with backend '%s'. Scores: %s", analyzer_backend, scores)
+        logger.info(
+            "Analysis complete with backend '%s'. Scores: %s", analyzer_backend, scores
+        )
         return result
 
     except HTTPException:
         raise
     except Exception as exc:  # noqa: BLE001
-        logger.exception("Error analyzing voice with backend '%s'", analyzer_backend or "unknown")
+        logger.exception(
+            "Error analyzing voice with backend '%s'", analyzer_backend or "unknown"
+        )
         raise HTTPException(
             status_code=500,
             detail={
@@ -176,17 +191,17 @@ def generate_advanced_mbti_style(scores: dict) -> dict:
     """
     4축 점수를 기반으로 MBTI 스타일 결과 생성
     """
-    brightness = scores['brightness']
-    thickness = scores['thickness']
-    adduction = scores['adduction']
-    spl = scores['spl']
+    brightness = scores["brightness"]
+    thickness = scores["thickness"]
+    adduction = scores["adduction"]
+    spl = scores["spl"]
 
     # 타입 코드 결정 (기존 호환성 유지)
-    type_code = ''
-    type_code += 'B' if brightness > 0 else 'D'  # Bright vs Dark
-    type_code += 'T' if thickness > 0 else 'L'   # Thick vs Light
-    type_code += 'C' if adduction > 0 else 'R'   # Complete vs Rough
-    type_code += 'S' if spl > 0 else 'W'         # Strong vs Weak
+    type_code = ""
+    type_code += "B" if brightness > 0 else "D"  # Bright vs Dark
+    type_code += "T" if thickness > 0 else "L"  # Thick vs Light
+    type_code += "C" if adduction > 0 else "R"  # Complete vs Rough
+    type_code += "S" if spl > 0 else "W"  # Strong vs Weak
 
     # 동적 특성 생성
     characteristics = []
@@ -254,18 +269,18 @@ def generate_advanced_mbti_style(scores: dict) -> dict:
         cons = ["더 많은 연습으로 발전 가능"]
 
     return {
-        'type_code': type_code,
-        'name': f"{type_code} 보컬 타입",
-        'characteristics': characteristics[:3],
-        'pros': pros[:4],
-        'cons': cons[:3],
-        'description': f"4축 분석 결과 - {type_code} 특성을 가진 보컬 타입",
-        'technical_analysis': {
-            'brightness_level': get_level_description(brightness, "밝기"),
-            'thickness_level': get_level_description(thickness, "두께"),
-            'adduction_level': get_level_description(adduction, "성대내전"),
-            'spl_level': get_level_description(spl, "음압")
-        }
+        "type_code": type_code,
+        "name": f"{type_code} 보컬 타입",
+        "characteristics": characteristics[:3],
+        "pros": pros[:4],
+        "cons": cons[:3],
+        "description": f"4축 분석 결과 - {type_code} 특성을 가진 보컬 타입",
+        "technical_analysis": {
+            "brightness_level": get_level_description(brightness, "밝기"),
+            "thickness_level": get_level_description(thickness, "두께"),
+            "adduction_level": get_level_description(adduction, "성대내전"),
+            "spl_level": get_level_description(spl, "음압"),
+        },
     }
 
 
@@ -294,7 +309,7 @@ async def health_check():
         "status": "healthy",
         "service": "advanced-vocal-analysis-api",
         "version": "2.0.0",
-        "features": ["brightness", "thickness", "adduction", "spl"]
+        "features": ["brightness", "thickness", "adduction", "spl"],
     }
 
 
@@ -308,9 +323,9 @@ async def root():
             "brightness": "음색 밝기 (-100 ~ +100)",
             "thickness": "음색 두께 (-100 ~ +100)",
             "adduction": "성대 내전 정도 (-100 ~ +100)",
-            "spl": "음압/소리 세기 (-100 ~ +100)"
+            "spl": "음압/소리 세기 (-100 ~ +100)",
         },
-        "docs": "/docs"
+        "docs": "/docs",
     }
 
 
@@ -320,7 +335,7 @@ async def compare_systems():
     return {
         "legacy_system": {
             "axes": ["brightness", "thickness", "clarity", "power"],
-            "libraries": ["librosa", "tensorflow"]
+            "libraries": ["librosa", "tensorflow"],
         },
         "advanced_system": {
             "axes": ["brightness", "thickness", "adduction", "spl"],
@@ -329,7 +344,7 @@ async def compare_systems():
                 "성대 내전 정도 정밀 측정",
                 "음성학적으로 검증된 분석",
                 "GPU 가속 처리",
-                "LUFS 기반 객관적 음압 측정"
-            ]
-        }
+                "LUFS 기반 객관적 음압 측정",
+            ],
+        },
     }

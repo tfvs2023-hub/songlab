@@ -40,7 +40,7 @@ curl -X POST "http://localhost:8000/api/analyze" \
 # 환경 생성
 conda env create -f conda_setup.yml
 
-# 환경 활성화  
+# 환경 활성화
 conda activate vocal-analyzer-advanced
 
 # Essentia 수동 설치 (필요시)
@@ -95,7 +95,7 @@ docker-compose --profile dev up jupyter
 
 ### 4축 분석 시스템:
 1. **밝기 (Brightness)**: Spectral centroid + Formant 비율 (Essentia + Praat)
-2. **두께 (Thickness)**: Harmonic richness + Spectral complexity (Essentia + Torchaudio) 
+2. **두께 (Thickness)**: Harmonic richness + Spectral complexity (Essentia + Torchaudio)
 3. **성대 내전 (Adduction)**: HNR + Jitter/Shimmer (Praat)
 4. **음압 (SPL)**: RMS + LUFS + Dynamic range (Torchaudio + PyLoudnorm)
 

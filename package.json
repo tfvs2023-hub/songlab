@@ -1,0 +1,24 @@
+{
+  "name": "songlab_advanced",
+  "version": "1.0.0",
+  "description": "Advanced SongLab Audio Processing",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tfvs2023-hub/songlab.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/tfvs2023-hub/songlab/issues"
+  },
+  "homepage": "https://github.com/tfvs2023-hub/songlab#readme",
+  "devDependencies": {
+    "eslint": "^9.36.0",
+    "eslint-plugin-react": "^7.37.5"
+  }
+}

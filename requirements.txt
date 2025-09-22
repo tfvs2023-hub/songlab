@@ -12,7 +12,7 @@ praat-parselmouth>=0.4.3
 opensmile>=2.4.2
 pyloudnorm>=0.1.0
 
-# Supporting Libraries  
+# Supporting Libraries
 numpy>=1.21.0,<2.0.0
 scipy>=1.7.0
 soundfile>=0.12.0

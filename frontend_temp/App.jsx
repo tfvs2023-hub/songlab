@@ -12,7 +12,7 @@ const VocalAnalysisPlatform = () => {
   // API URL configuration: prefer VITE_API_URL, otherwise fall back to runtime origin
   const API_URL = (import.meta.env.VITE_API_URL && import.meta.env.VITE_API_URL.trim()) || window.location.origin;
   const [backendStatus, setBackendStatus] = useState('checking');
-  
+
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const timerRef = useRef(null);
@@ -44,14 +44,14 @@ const VocalAnalysisPlatform = () => {
 
   const analyzeAudioFile = async (audioFile) => {
     setIsAnalyzing(true);
-    
+
     try {
       const formData = new FormData();
       formData.append('file', audioFile);
 
       // 백엔드 서버가 없을 때를 대비한 임시 처리
       console.log('백엔드 서버 연결 시도...');
-      
+
       try {
         const response = await fetch(`${API_URL}/api/analyze?force_engine=studio`, {
           method: 'POST',
@@ -66,7 +66,7 @@ const VocalAnalysisPlatform = () => {
       } catch (fetchError) {
         console.log('백엔드 서버 연결 실패, 데모 모드로 전환');
         setBackendStatus('disconnected');
-        
+
         // 데모 결과 반환 (백엔드 형식에 맞게)
         const demoResults = [
           { typeCode: 'BTCP', typeName: 'BTCP', typeIcon: '🌟', description: '밝고 두꺼우며 명료하고 파워풀한 보컬 | 팝/뮤지컬형' },
@@ -74,9 +74,9 @@ const VocalAnalysisPlatform = () => {
           { typeCode: 'BNCP', typeName: 'BNCP', typeIcon: '🌟', description: '밝고 얇으며 명료하고 파워풀한 보컬 | K-POP/댄스형' },
           { typeCode: 'DTFS', typeName: 'DTFS', typeIcon: '🌙', description: '어둡고 두껍고 숨섞인 부드러운 보컬 | 재즈/소울형' }
         ];
-        
+
         const randomResult = demoResults[Math.floor(Math.random() * demoResults.length)];
-        
+
         return {
           scores: {
             brightness: Math.random() * 200 - 100,
@@ -91,7 +91,7 @@ const VocalAnalysisPlatform = () => {
       }
     } catch (error) {
       console.error('음성 분석 오류:', error);
-      
+
       return {
         scores: {
           brightness: Math.random() * 200 - 100,
@@ -160,9 +160,9 @@ const VocalAnalysisPlatform = () => {
 
   const startAnalysis = async () => {
     if (!audioFile) return;
-    
+
     setCurrentStep('analysis');
-    
+
     try {
       const result = await analyzeAudioFile(audioFile);
       setAnalysisResults(result);
@@ -184,7 +184,7 @@ const VocalAnalysisPlatform = () => {
     if (!analysisResults || !analysisResults.scores) return null;
     const scores = analysisResults.scores;
     const areas = Object.entries(scores);
-    return areas.reduce((min, current) => 
+    return areas.reduce((min, current) =>
       current[1] < min[1] ? current : min
     );
   };
@@ -192,15 +192,15 @@ const VocalAnalysisPlatform = () => {
   // 카카오톡 공유 함수
   const shareToKakao = () => {
     if (!analysisResults) return;
-    
+
     const scores = analysisResults.scores || {};
     const vocalType = analysisResults.mbti;
-    
+
     // 점수를 퍼센트로 변환 (0-100%)
     const getPercentage = (score) => Math.round(((score + 100) / 2));
-    
+
     const shareText = `🎤 SongLab 보컬 분석 결과
-    
+
 ${vocalType ? `🎭 보컬 타입: ${vocalType.typeName || vocalType.type_code}
 ${vocalType.description}
 
@@ -248,7 +248,7 @@ ${vocalType.description}
           <div className="mb-6">
             <Sparkles className="w-16 h-16 mx-auto mb-4 animate-pulse" />
             <h1 className="text-5xl font-bold mb-4">SongLab</h1>
-            
+
             {/* 핵심 마케팅 메시지 */}
             <div className="mb-6">
               <p className="text-2xl font-bold mb-3 text-yellow-300">
@@ -259,7 +259,7 @@ ${vocalType.description}
                 <span className="font-semibold text-white">SongLab이 여러분만을 위한 커리큘럼을 설계해드립니다!</span>
               </p>
             </div>
-            
+
             {/* 신뢰 배지 - 첫 화면에 바로 보이게 */}
             <div className="flex justify-center gap-4 mb-6">
               <div className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full text-sm">
@@ -270,7 +270,7 @@ ${vocalType.description}
               </div>
             </div>
           </div>
-          
+
           {/* 문제 해결 포인트 */}
           <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 mb-6 max-w-2xl mx-auto">
             <div className="grid grid-cols-3 gap-4 text-sm">
@@ -292,13 +292,13 @@ ${vocalType.description}
             </div>
           </div>
 
-          <button 
+          <button
             onClick={() => setCurrentStep('record')}
             className="bg-white text-purple-600 px-8 py-4 rounded-full font-bold text-lg hover:bg-gray-100 transition-all transform hover:scale-105 mb-4"
           >
             무료로 테스트해보기
           </button>
-          
+
           {/* 스크롤 유도 화살표 */}
           <div className="mt-8 animate-bounce">
             <svg className="w-6 h-6 mx-auto text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -318,13 +318,13 @@ ${vocalType.description}
               업계 최고 전문가들이 검증
             </div>
             <h2 className="text-3xl md:text-4xl text-gray-900 mb-4">
-              메이저 엔터테인먼트 
+              메이저 엔터테인먼트
               <span className="block bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
                 전문가들의 검증과 신뢰
               </span>
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              SM, JYP, HYBE에서 실제 아티스트들을 지도했던 보컬 전문가들이 직접 검증한 AI 보컬 분석 시스템으로, 
+              SM, JYP, HYBE에서 실제 아티스트들을 지도했던 보컬 전문가들이 직접 검증한 AI 보컬 분석 시스템으로,
               글로벌 스타들과 같은 수준의 전문적인 보컬 트레이닝을 경험하세요.
             </p>
           </div>
@@ -335,11 +335,11 @@ ${vocalType.description}
               현업 전문가들이 검증한 신뢰성
             </h3>
             <p className="text-indigo-100 mb-6 max-w-3xl mx-auto text-lg">
-              글로벌 K-POP 스타들을 실제로 지도했던 전문가들의 노하우와 최첨단 AI 기술이 결합된 
+              글로벌 K-POP 스타들을 실제로 지도했던 전문가들의 노하우와 최첨단 AI 기술이 결합된
               보컬 트레이닝 시스템을 지금 무료로 체험해보세요.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <button 
+              <button
                 onClick={() => setCurrentStep('record')}
                 className="px-8 py-4 bg-white text-indigo-600 rounded-lg hover:bg-gray-50 transition-all transform hover:scale-105 duration-300 font-semibold"
               >
@@ -509,13 +509,13 @@ ${vocalType.description}
     // Enhanced recording start
     const startRecordingAdvanced = async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ 
+        const stream = await navigator.mediaDevices.getUserMedia({
           audio: {
             echoCancellation: true,
             noiseSuppression: false, // We want to analyze natural audio
             autoGainControl: false,
             sampleRate: 44100
-          } 
+          }
         });
 
         await initializeAudioMonitoring(stream);
@@ -531,8 +531,8 @@ ${vocalType.description}
         };
 
         mediaRecorderRef.current.onstop = () => {
-          const audioBlob = new Blob(audioChunksRef.current, { 
-            type: mediaRecorderRef.current.mimeType 
+          const audioBlob = new Blob(audioChunksRef.current, {
+            type: mediaRecorderRef.current.mimeType
           });
           setAudioFile(audioBlob);
 
@@ -1107,14 +1107,14 @@ const AnalysisPage = () => {
               <h3 className="text-2xl font-bold text-center text-gray-800 mb-6">
                 🎯 맞춤형 보컬 트레이닝 추천
               </h3>
-              
+
               {youtubeVideos.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {youtubeVideos.map((video, index) => (
                       <div key={index} className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl p-4 border border-purple-100 hover:shadow-lg transition-all duration-300 hover:scale-105">
                         <div className="text-center">
                           <div className="mb-3">
-                            <img 
+                            <img
                               src={(() => {
                                 try {
                                   const thumb = video.thumbnail || `https://i.ytimg.com/vi/${video.videoId}/hqdefault.jpg`;
@@ -1139,7 +1139,7 @@ const AnalysisPage = () => {
                               {video.channelTitle}
                             </p>
                           </div>
-                          
+
                           <button
                             onClick={() => {
                               window.open(video.url, '_blank');

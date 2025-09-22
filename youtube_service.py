@@ -55,7 +55,9 @@ class YouTubeService:
         },
     }
 
-    def __init__(self, api_key: Optional[str] = None, cache_ttl: Optional[int] = None) -> None:
+    def __init__(
+        self, api_key: Optional[str] = None, cache_ttl: Optional[int] = None
+    ) -> None:
         self.api_key = (api_key or os.getenv("YOUTUBE_API_KEY", "")).strip()
 
         if cache_ttl is not None:
@@ -82,19 +84,23 @@ class YouTubeService:
                 "YouTube API key not configured. Recommendations will fall back to search URLs."
             )
         if _GOOGLE_API_IMPORT_ERROR is not None:
-            logger.warning("googleapiclient is not available: %s", _GOOGLE_API_IMPORT_ERROR)
+            logger.warning(
+                "googleapiclient is not available: %s", _GOOGLE_API_IMPORT_ERROR
+            )
 
     def _ensure_client(self):
         if self._youtube is not None:
             return self._youtube
 
         if build is None:
-            raise RuntimeError(f"googleapiclient is not available: {_GOOGLE_API_IMPORT_ERROR}")
+            raise RuntimeError(
+                f"googleapiclient is not available: {_GOOGLE_API_IMPORT_ERROR}"
+            )
         if not self.api_key:
             raise RuntimeError("YouTube API key is not configured.")
 
         try:
-            self._youtube = build('youtube', 'v3', developerKey=self.api_key)
+            self._youtube = build("youtube", "v3", developerKey=self.api_key)
             self._last_error = None
             return self._youtube
         except Exception as exc:  # noqa: BLE001
@@ -103,17 +109,17 @@ class YouTubeService:
             raise
 
     def _build_fallback(self, keyword: str, reason: Optional[str] = None) -> Dict:
-        query = keyword.replace(' ', '+')
+        query = keyword.replace(" ", "+")
         description = "YouTube에서 직접 검색해보세요"
         if reason:
             description = f"{description} ({reason})"
         return {
-            'videoId': None,
-            'title': f"{keyword} 검색하기",
-            'description': description,
-            'thumbnail': self.FALLBACK_THUMBNAIL,
-            'channelTitle': "YouTube",
-            'url': f"https://www.youtube.com/results?search_query={query}"
+            "videoId": None,
+            "title": f"{keyword} 검색하기",
+            "description": description,
+            "thumbnail": self.FALLBACK_THUMBNAIL,
+            "channelTitle": "YouTube",
+            "url": f"https://www.youtube.com/results?search_query={query}",
         }
 
     @property
@@ -140,7 +146,11 @@ class YouTubeService:
     def _keywords_for_axis(self, axis: str, score: float) -> List[str]:
         templates = self.KEYWORD_TEMPLATES.get(axis, self.KEYWORD_TEMPLATES["default"])
         band = self._score_band(score)
-        keywords = templates.get(band) or templates.get("neutral") or self.KEYWORD_TEMPLATES["default"]["neutral"]
+        keywords = (
+            templates.get(band)
+            or templates.get("neutral")
+            or self.KEYWORD_TEMPLATES["default"]["neutral"]
+        )
         return keywords
 
     def search_videos(self, keyword: str, max_results: int = 3) -> List[Dict]:
@@ -157,19 +167,25 @@ class YouTubeService:
         try:
             youtube = self._ensure_client()
         except Exception as exc:  # noqa: BLE001
-            logger.warning("YouTube client unavailable for keyword '%s': %s", keyword, exc)
+            logger.warning(
+                "YouTube client unavailable for keyword '%s': %s", keyword, exc
+            )
             return [self._build_fallback(keyword, reason=str(exc))]
 
         try:
-            search_response = youtube.search().list(
-                q=f"{keyword} 보컬 레슨",
-                part='id,snippet',
-                maxResults=max_results,
-                type='video',
-                relevanceLanguage='ko',
-                regionCode='KR',
-                safeSearch='moderate'
-            ).execute()
+            search_response = (
+                youtube.search()
+                .list(
+                    q=f"{keyword} 보컬 레슨",
+                    part="id,snippet",
+                    maxResults=max_results,
+                    type="video",
+                    relevanceLanguage="ko",
+                    regionCode="KR",
+                    safeSearch="moderate",
+                )
+                .execute()
+            )
         except HttpError as exc:  # type: ignore[misc]
             logger.warning("YouTube API HttpError for '%s': %s", keyword, exc)
             return [self._build_fallback(keyword, reason="API 호출 오류")]
@@ -178,23 +194,27 @@ class YouTubeService:
             return [self._build_fallback(keyword, reason=str(exc))]
 
         videos: List[Dict] = []
-        for item in search_response.get('items', []):
-            video_id = item.get('id', {}).get('videoId')
+        for item in search_response.get("items", []):
+            video_id = item.get("id", {}).get("videoId")
             if not video_id:
                 continue
 
-            snippet = item.get('snippet', {})
-            thumbnails = snippet.get('thumbnails', {})
-            thumbnail = thumbnails.get('high', {}).get('url') or thumbnails.get('default', {}).get('url')
+            snippet = item.get("snippet", {})
+            thumbnails = snippet.get("thumbnails", {})
+            thumbnail = thumbnails.get("high", {}).get("url") or thumbnails.get(
+                "default", {}
+            ).get("url")
 
-            videos.append({
-                'videoId': video_id,
-                'title': snippet.get('title'),
-                'description': (snippet.get('description') or '')[:200],
-                'thumbnail': thumbnail or self.FALLBACK_THUMBNAIL,
-                'channelTitle': snippet.get('channelTitle'),
-                'url': f"https://www.youtube.com/watch?v={video_id}"
-            })
+            videos.append(
+                {
+                    "videoId": video_id,
+                    "title": snippet.get("title"),
+                    "description": (snippet.get("description") or "")[:200],
+                    "thumbnail": thumbnail or self.FALLBACK_THUMBNAIL,
+                    "channelTitle": snippet.get("channelTitle"),
+                    "url": f"https://www.youtube.com/watch?v={video_id}",
+                }
+            )
 
         if videos:
             self._cache[cache_key] = (now, videos)
@@ -235,7 +255,7 @@ class YouTubeService:
         for keyword in keywords:
             results = self.search_videos(keyword, max_results=3)
             for video in results:
-                video_id = video.get('videoId') or video.get('url')
+                video_id = video.get("videoId") or video.get("url")
                 if not video_id or video_id in seen_ids:
                     continue
 

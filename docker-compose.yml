@@ -28,7 +28,7 @@ services:
           cpus: '2.0'
           memory: 4G
         reservations:
-          cpus: '1.0' 
+          cpus: '1.0'
           memory: 2G
 
   # 개발용 Jupyter 환경 (옵션)

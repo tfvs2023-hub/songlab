@@ -55,6 +55,9 @@ venv/
 env/
 ENV/
 
+# Node modules
+node_modules/
+
 # Editor backups
 *~
 *.swp

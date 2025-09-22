@@ -7,7 +7,7 @@ class SongLabApp {
         this.mediaRecorder = null;
         this.recordingChunks = [];
         this.recordingTimer = null;
-        
+
         this.init();
     }
 
@@ -28,23 +28,23 @@ class SongLabApp {
         // 파일 업로드
         document.getElementById('file-input').addEventListener('change', this.handleFileSelect.bind(this));
         document.getElementById('analyze-btn').addEventListener('click', this.startAnalysis.bind(this));
-        
+
         // 결과보기
         document.getElementById('show-result-btn').addEventListener('click', this.showResult.bind(this));
-        
+
         // 녹음 기능
         document.getElementById('record-btn').addEventListener('click', this.startRecording.bind(this));
         document.getElementById('stop-recording').addEventListener('click', this.stopRecording.bind(this));
-        
+
         // 로그인
         document.getElementById('kakao-login').addEventListener('click', this.kakaoLogin.bind(this));
         document.getElementById('google-login').addEventListener('click', this.googleLogin.bind(this));
         document.getElementById('logout-btn').addEventListener('click', this.logout.bind(this));
-        
+
         // 액션 버튼들
         document.getElementById('share-btn').addEventListener('click', this.shareResult.bind(this));
         document.getElementById('retry-btn').addEventListener('click', this.resetAnalysis.bind(this));
-        
+
         // 광고 관련
         document.getElementById('skip-ad').addEventListener('click', this.skipAd.bind(this));
     }
@@ -52,7 +52,7 @@ class SongLabApp {
     // 드래그 앤 드롭 설정
     setupDragAndDrop() {
         const uploadArea = document.getElementById('upload-area');
-        
+
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
             uploadArea.addEventListener(eventName, this.preventDefaults, false);
         });
@@ -93,7 +93,7 @@ class SongLabApp {
         const maxSize = 50 * 1024 * 1024; // 50MB
         const allowedExts = ['.wav', '.mp3', '.m4a', '.flac', '.ogg'];
         const allowedTypes = ['audio/wav', 'audio/mp3', 'audio/mpeg', 'audio/x-m4a', 'audio/mp4', 'audio/ogg', 'audio/flac'];
-        
+
         if (file.size > maxSize) {
             this.showError('파일 크기가 50MB를 초과합니다.');
             return false;
@@ -110,14 +110,14 @@ class SongLabApp {
 
         return true;
     }
-    
+
 
     // 파일 정보 표시
     displayFileInfo(file) {
         const fileInfo = document.getElementById('file-info');
         const fileName = document.getElementById('file-name');
         const fileSize = document.getElementById('file-size');
-        
+
         fileName.textContent = file.name;
         fileSize.textContent = this.formatFileSize(file.size);
         fileInfo.classList.remove('hidden');
@@ -144,7 +144,7 @@ class SongLabApp {
         try {
             const formData = new FormData();
             formData.append('file', this.currentFile);
-            
+
             // 진행 상황 업데이트
             setTimeout(() => this.showLoading('CREPE AI 모델을 로딩 중...'), 1000);
             setTimeout(() => this.showLoading('음성 특성을 추출하고 있습니다...'), 3000);
@@ -245,7 +245,7 @@ class SongLabApp {
             }
         } else {
             adContainer.innerHTML = adData.content;
-            
+
             // 클릭 이벤트 추가
             if (adData.click_url) {
                 adContainer.style.cursor = 'pointer';
@@ -275,7 +275,7 @@ class SongLabApp {
             clearInterval(countdown);
             adModal.classList.add('hidden');
             skipBtn.removeEventListener('click', skipHandler);
-            
+
             // 최종 결과 가져오기
             await this.getFinalResult(nextEndpoint);
         };
@@ -363,25 +363,25 @@ class SongLabApp {
     // 점수 바 애니메이션
     animateScores(scores) {
         const scoreItems = ['brightness', 'thickness', 'clarity', 'power'];
-        
+
         scoreItems.forEach(item => {
             const score = scores[item] || 0;
             const bar = document.getElementById(`${item}-bar`);
             const scoreText = document.getElementById(`${item}-score`);
-            
+
             // 점수 텍스트 업데이트
             scoreText.textContent = `${score > 0 ? '+' : ''}${score}`;
-            
+
             // 바 너비 계산 (0~100%)
             const width = Math.abs(score);
-            
+
             // 색상 설정
             if (score > 0) {
                 bar.className = 'score-fill positive';
             } else {
                 bar.className = 'score-fill negative';
             }
-            
+
             // 애니메이션
             setTimeout(() => {
                 bar.style.width = `${width}%`;
@@ -393,7 +393,7 @@ class SongLabApp {
     displayList(elementId, items) {
         const list = document.getElementById(elementId);
         list.innerHTML = '';
-        
+
         items.slice(0, 3).forEach(item => {
             const li = document.createElement('li');
             li.textContent = item;
@@ -405,7 +405,7 @@ class SongLabApp {
     displaySongs(songs) {
         const container = document.getElementById('songs-list');
         container.innerHTML = '';
-        
+
         songs.slice(0, 4).forEach(song => {
             const tag = document.createElement('span');
             tag.className = 'song-tag';
@@ -482,28 +482,28 @@ class SongLabApp {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             this.mediaRecorder = new MediaRecorder(stream);
             this.recordingChunks = [];
-            
+
             this.mediaRecorder.ondataavailable = (event) => {
                 this.recordingChunks.push(event.data);
             };
-            
+
             this.mediaRecorder.onstop = () => {
                 const blob = new Blob(this.recordingChunks, { type: 'audio/wav' });
                 const file = new File([blob], 'recording.wav', { type: 'audio/wav' });
                 this.handleFile(file);
                 this.currentFile = file;
             };
-            
+
             this.mediaRecorder.start();
             this.isRecording = true;
-            
+
             // UI 업데이트
             document.getElementById('record-btn').classList.add('hidden');
             document.getElementById('recording-controls').classList.remove('hidden');
-            
+
             // 타이머 시작
             this.startRecordingTimer();
-            
+
         } catch (error) {
             console.error('녹음 오류:', error);
             this.showError('마이크 접근 권한이 필요합니다.');
@@ -515,14 +515,14 @@ class SongLabApp {
         if (this.mediaRecorder && this.isRecording) {
             this.mediaRecorder.stop();
             this.isRecording = false;
-            
+
             // 스트림 정지
             this.mediaRecorder.stream.getTracks().forEach(track => track.stop());
-            
+
             // UI 업데이트
             document.getElementById('record-btn').classList.remove('hidden');
             document.getElementById('recording-controls').classList.add('hidden');
-            
+
             // 타이머 정지
             if (this.recordingTimer) {
                 clearInterval(this.recordingTimer);
@@ -535,7 +535,7 @@ class SongLabApp {
     startRecordingTimer() {
         let seconds = 0;
         const timerElement = document.getElementById('recording-time');
-        
+
         this.recordingTimer = setInterval(() => {
             seconds++;
             const mins = Math.floor(seconds / 60);
@@ -552,7 +552,7 @@ class SongLabApp {
                 const response = await fetch('/auth/me', {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
-                
+
                 if (response.ok) {
                     const user = await response.json();
                     this.showUserInfo(user);
@@ -599,12 +599,12 @@ class SongLabApp {
     // 사용자 정보 표시
     showUserInfo(user) {
         this.currentUser = user;
-        
+
         document.getElementById('user-name').textContent = user.name;
         if (user.profile_image) {
             document.getElementById('user-avatar').src = user.profile_image;
         }
-        
+
         document.getElementById('auth-buttons').classList.add('hidden');
         document.getElementById('user-info').classList.remove('hidden');
     }
@@ -636,7 +636,7 @@ class SongLabApp {
     resetAnalysis() {
         this.currentSession = null;
         this.currentFile = null;
-        
+
         document.getElementById('file-input').value = '';
         document.getElementById('file-info').classList.add('hidden');
         document.getElementById('result-section').classList.add('hidden');
@@ -674,11 +674,11 @@ class SongLabApp {
 function handleOAuthCallback() {
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
-    const state = urlParams.get('state');
-    
+    // state param is unused for now; if you need it later, read with urlParams.get('state')
+
     if (code) {
         const provider = window.location.pathname.includes('kakao') ? 'kakao' : 'google';
-        
+
         fetch(`/auth/${provider}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

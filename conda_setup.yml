@@ -15,7 +15,7 @@ dependencies:
   - torchaudio
   - fastapi
   - uvicorn
-  
+
   # pip으로 나머지 설치
   - pip:
     - praat-parselmouth>=0.4.3
