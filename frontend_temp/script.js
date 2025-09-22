@@ -88,6 +88,21 @@ class SongLabApp {
         }
     }
 
+    // 파일 처리: 업로드된 파일을 검증하고 UI에 표시
+    handleFile(file) {
+        if (!file) return;
+
+        // Validate file (size/type)
+        if (!this.validateFile(file)) {
+            this.currentFile = null;
+            return;
+        }
+
+        // 저장 및 UI 업데이트
+        this.currentFile = file;
+        this.displayFileInfo(file);
+    }
+
     // 파일 처리
     validateFile(file) {
         const maxSize = 50 * 1024 * 1024; // 50MB

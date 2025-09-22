@@ -11,6 +11,7 @@ from typing import Dict, Optional, Tuple
 
 try:
     import essentia.standard as es
+
     _ESSENTIA_AVAILABLE = True
 except Exception:
     es = None
@@ -40,7 +41,9 @@ class AdvancedVocalAnalyzer:
         """각 라이브러리별 프로세서 초기화"""
 
         # Torchaudio transforms (GPU 가속)
-        self.mel_transform = T.MelSpectrogram(sample_rate=self.sr, n_fft=2048, n_mels=128)
+        self.mel_transform = T.MelSpectrogram(
+            sample_rate=self.sr, n_fft=2048, n_mels=128
+        )
 
         # Essentia-based processors when available
         if _ESSENTIA_AVAILABLE and es is not None:
@@ -60,7 +63,7 @@ class AdvancedVocalAnalyzer:
                 self.harmonic_peaks = None
                 self.spectral_complexity = None
                 # Safely mark module-level flag without using 'global' in nested scope
-                globals()['_ESSENTIA_AVAILABLE'] = False
+                globals()["_ESSENTIA_AVAILABLE"] = False
         else:
             # Ensure attributes exist even when essentia is not available
             self.windowing = None
@@ -80,9 +83,8 @@ class AdvancedVocalAnalyzer:
         # If essentia is not available at import/runtime, delegate to the no-essentia analyzer
         if not _ESSENTIA_AVAILABLE:
             try:
-                from advanced_vocal_analyzer_no_essentia import (
-                    AdvancedVocalAnalyzerNoEssentia as _NoEssentiaAnalyzer,
-                )
+                from advanced_vocal_analyzer_no_essentia import \
+                    AdvancedVocalAnalyzerNoEssentia as _NoEssentiaAnalyzer
 
                 analyzer = _NoEssentiaAnalyzer(sample_rate=self.sr)
                 return analyzer.analyze_audio(audio_data)

@@ -2,8 +2,8 @@
 단일 오디오 파일 분석 스크립트
 """
 
-import sys
 import os
+import sys
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 

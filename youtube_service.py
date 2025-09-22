@@ -305,13 +305,26 @@ class YouTubeService:
                 except Exception:
                     vid = None
 
-            normalized.append({
-                "videoId": vid,
-                "title": v.get("title"),
-                "description": v.get("description"),
-                "thumbnail": v.get("thumbnail") or (f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg" if vid else self.FALLBACK_THUMBNAIL),
-                "channelTitle": v.get("channelTitle"),
-                "url": v.get("url") if v.get("url") else (f"https://www.youtube.com/watch?v={vid}" if vid else f"https://www.youtube.com/results?search_query={keyword.replace(' ', '+')}")
-            })
+            normalized.append(
+                {
+                    "videoId": vid,
+                    "title": v.get("title"),
+                    "description": v.get("description"),
+                    "thumbnail": v.get("thumbnail")
+                    or (
+                        f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg"
+                        if vid
+                        else self.FALLBACK_THUMBNAIL
+                    ),
+                    "channelTitle": v.get("channelTitle"),
+                    "url": v.get("url")
+                    if v.get("url")
+                    else (
+                        f"https://www.youtube.com/watch?v={vid}"
+                        if vid
+                        else f"https://www.youtube.com/results?search_query={keyword.replace(' ', '+')}"
+                    ),
+                }
+            )
 
         return normalized
