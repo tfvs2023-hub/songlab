@@ -12,7 +12,7 @@ jobs:
     timeout-minutes: 30
     defaults:
       run:
-        shell: bash -l
+        shell: "bash -l {0}"
     env:
       TARGET_DIR: /home/tfvs2023/app/dist
 
@@ -62,6 +62,8 @@ jobs:
       - name: Create frontend tarball
         run: |
           tar -czf frontend_temp.tar.gz -C frontend_temp .
+          echo "Tarball contents (first 50 lines):"
+          tar -tzf frontend_temp.tar.gz | sed -n '1,50p' || true
 
       - name: Upload frontend tarball via SCP
         uses: appleboy/scp-action@v0.1.0
@@ -106,22 +108,36 @@ jobs:
             TARGET_DIR=/home/tfvs2023/app/dist
             TMP_DIR=/home/tfvs2023/app/dist_new
             if [ -f "$TAR" ]; then
+              echo "Tar contents (server-side) -- first 100 lines:"
+              sudo tar -tzf "$TAR" | sed -n '1,100p' > /tmp/deploy_tar_listing.txt || true
               echo "Extracting $TAR to $TMP_DIR"
               sudo rm -rf "$TMP_DIR" || true
               sudo mkdir -p "$TMP_DIR"
-              sudo tar -xzf "$TAR" -C "$TMP_DIR"
+
+              # Determine if archive contains a single top-level directory and use --strip-components=1 if so
+              FIRST_ENTRY=$(sudo tar -tzf "$TAR" | head -n1 || true)
+              EXTRA_FLAGS=""
+              if echo "$FIRST_ENTRY" | grep -q '/'; then
+                echo "Archive appears to contain a top-level directory. Will extract with --strip-components=1 to avoid nested folder. First entry: $FIRST_ENTRY"
+                EXTRA_FLAGS="--strip-components=1"
+              fi
+
+              sudo tar -xzf "$TAR" -C "$TMP_DIR" $EXTRA_FLAGS
               sudo rm -f "$TAR" || true
+
               # Verify extracted content has required files at the root
               if [ ! -f "$TMP_DIR/index.html" ]; then
                 echo "ERROR: extracted archive does not contain index.html at root of archive"
                 sudo ls -la "$TMP_DIR" || true
+                # show tar listing for diagnosing
+                sudo sed -n '1,200p' /tmp/deploy_tar_listing.txt || true
                 exit 1
               fi
 
-              # Require stylesheet present (prevent unstyled deploys). script.js optional but recommended.
               if [ ! -f "$TMP_DIR/style.css" ]; then
                 echo "ERROR: extracted archive does not contain style.css at root of archive"
                 sudo ls -la "$TMP_DIR" || true
+                sudo sed -n '1,200p' /tmp/deploy_tar_listing.txt || true
                 exit 1
               fi
 
@@ -155,7 +171,6 @@ jobs:
                 exit 1
               fi
 
-              # Optional: warn if script.js missing from HTTP but do not fail deploy
               if [ "$JS_OK" -ne 0 ]; then
                 echo "WARNING: script.js did not return 200 after deploy"
                 echo "--- curl output (script.js) ---"
