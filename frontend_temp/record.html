@@ -3,20 +3,40 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>녹음하기 — 쏭랩</title>
+  <title>녹음하기 — SongLab</title>
   <link rel="stylesheet" href="./style.css">
-</head>
+  </head>
 <body>
-  <main class="container record-page">
-    <h1>녹음 전 주의사항</h1>
-    <ul>
-      <li>조용한 환경에서 녹음하세요.</li>
-      <li>마이크와의 거리를 일정하게 유지하세요.</li>
-      <li>샘플 길이는 5~30초 권장입니다.</li>
-    </ul>
-    <button id="start-record" class="cta-btn">녹음 시작</button>
-    <a class="link-back" href="landing.html">← 뒤로</a>
+  <header class="site-header">
+    <div class="container nav">
+      <div class="logo"><a href="landing.html">🎤 SongLab</a></div>
+      <nav class="main-nav"><a href="landing.html">홈</a> <a href="record.html">녹음하기</a> <a href="result.html">분석결과</a></nav>
+    </div>
+  </header>
+
+  <main class="container record-wrap">
+    <section class="record-instructions">
+      <h1>녹음 전 안내</h1>
+      <ul>
+        <li>가능한 한 조용한 장소에서 녹음하세요.</li>
+        <li>마이크와의 거리를 일정하게 유지하세요 (약 20~30cm).</li>
+        <li>권장 길이: 10~30초</li>
+      </ul>
+      <div class="record-actions">
+        <button id="record-btn" class="btn primary">녹음 시작</button>
+        <a class="btn ghost" href="landing.html">뒤로 가기</a>
+      </div>
+    </section>
+
+    <section class="record-preview hidden" id="preview">
+      <h2>미리보기</h2>
+      <audio id="audio-play" controls></audio>
+      <div class="analysis-note">녹음 후 자동으로 분석이 시작됩니다.</div>
+    </section>
   </main>
+
+  <footer class="site-footer"><div class="container">© 2025 SongLab</div></footer>
+
   <script src="./script.js"></script>
 </body>
 </html>

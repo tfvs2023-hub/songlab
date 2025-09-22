@@ -3,16 +3,71 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>내 목소리 사용설명서 — 쏭랩</title>
+  <title>SongLab — 내 목소리 사용설명서</title>
   <link rel="stylesheet" href="./style.css">
 </head>
 <body>
-  <main class="container hero-landing">
-    <h1 class="hero-title">내 목소리 사용설명서 <span class="brand">쏭랩</span></h1>
-    <p class="hero-sub">당신의 목소리를 정확히 분석해 맞춤형 개선안을 제시합니다.</p>
-    <a class="cta-btn" href="record.html">무료 분석 시작하기</a>
-    <p class="note">※ 클릭하면 녹음 페이지로 이동합니다. 녹음 시 주의사항을 꼭 확인하세요.</p>
+  <header class="site-header">
+    <div class="container nav">
+      <div class="logo">
+        <a href="landing.html"><span class="logo-mark">🎤</span><span class="logo-text">SongLab</span></a>
+      </div>
+      <nav class="main-nav">
+        <a href="landing.html">홈</a>
+        <a href="record.html">녹음하기</a>
+        <a href="result.html">분석결과</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="hero">
+      <div class="hero-inner">
+        <h1>내 목소리 사용설명서</h1>
+        <p class="subtitle">정확한 음성 분석과 단계별 개선 커리큘럼을 제공합니다.</p>
+        <div class="hero-ctas">
+          <a class="btn primary" href="record.html">무료 분석 시작하기</a>
+          <a class="btn ghost" href="#features">기능 보기</a>
+        </div>
+      </div>
+    </section>
+
+    <section id="features" class="features">
+      <h2>SongLab의 특징</h2>
+      <div class="cards">
+        <div class="card">
+          <h3>정확한 진단</h3>
+          <p>음성의 4축(밝기/두께/선명도/파워)을 분석해 현재 상태를 제시합니다.</p>
+        </div>
+        <div class="card">
+          <h3>맞춤형 커리큘럼</h3>
+          <p>분석 결과 기반으로 단계별 훈련 과제를 추천합니다.</p>
+        </div>
+        <div class="card">
+          <h3>추천 영상</h3>
+          <p>유튜브 기반 실전 연습 영상으로 빠르게 개선하세요.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="about">
+      <div class="about-inner">
+        <h2>시작하기 간단합니다</h2>
+        <ol>
+          <li>녹음 버튼으로 10~30초 음성 녹음</li>
+          <li>자동 분석으로 현재 목소리 상태 확인</li>
+          <li>맞춤형 연습으로 개선하세요</li>
+        </ol>
+      </div>
+    </section>
   </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>© 2025 SongLab — 내 목소리 사용설명서</p>
+    </div>
+  </footer>
+
   <script src="./script.js"></script>
 </body>
 </html>

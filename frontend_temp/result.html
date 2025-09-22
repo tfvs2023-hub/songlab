@@ -3,29 +3,54 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>분석 결과 — 쏭랩</title>
+  <title>분석 결과 — SongLab</title>
   <link rel="stylesheet" href="./style.css">
 </head>
 <body>
-  <main class="container result-page">
+  <header class="site-header">
+    <div class="container nav">
+      <div class="logo"><a href="landing.html">🎤 SongLab</a></div>
+      <nav class="main-nav"><a href="landing.html">홈</a> <a href="record.html">녹음하기</a> <a href="result.html">분석결과</a></nav>
+    </div>
+  </header>
+
+  <main class="container result-wrap">
     <h1>분석 결과</h1>
-    <section class="scores">
-      <h2>4축 분석</h2>
-      <ul>
-        <li>밝기: <strong id="brightness">--</strong></li>
-        <li>두께: <strong id="thickness">--</strong></li>
-        <li>선명도: <strong id="clarity">--</strong></li>
-        <li>파워: <strong id="power">--</strong></li>
-      </ul>
+
+    <section class="result-summary">
+      <div class="score-cards">
+        <div class="score-card">
+          <h3>밝기</h3>
+          <div class="score" id="brightness">--</div>
+        </div>
+        <div class="score-card">
+          <h3>두께</h3>
+          <div class="score" id="thickness">--</div>
+        </div>
+        <div class="score-card">
+          <h3>선명도</h3>
+          <div class="score" id="clarity">--</div>
+        </div>
+        <div class="score-card">
+          <h3>파워</h3>
+          <div class="score" id="power">--</div>
+        </div>
+      </div>
     </section>
 
-    <section class="videos">
+    <section class="recommendations">
       <h2>추천 영상</h2>
-      <div id="video-list">결과에 따라 추천 영상을 불러옵니다.</div>
+      <div id="video-list">추천 영상을 불러오는 중...</div>
     </section>
 
-    <a class="cta-btn" href="landing.html">홈으로</a>
+    <div class="result-actions">
+      <a class="btn primary" href="record.html">다시 녹음하기</a>
+      <a class="btn ghost" href="landing.html">홈으로</a>
+    </div>
   </main>
+
+  <footer class="site-footer"><div class="container">© 2025 SongLab</div></footer>
+
   <script src="./script.js"></script>
 </body>
 </html>
