@@ -36,17 +36,15 @@ class SongLabApp {
         document.getElementById('record-btn').addEventListener('click', this.startRecording.bind(this));
         document.getElementById('stop-recording').addEventListener('click', this.stopRecording.bind(this));
 
-        // 로그인
-        document.getElementById('kakao-login').addEventListener('click', this.kakaoLogin.bind(this));
-        document.getElementById('google-login').addEventListener('click', this.googleLogin.bind(this));
-        document.getElementById('logout-btn').addEventListener('click', this.logout.bind(this));
+    // 로그인 기능 제거: 버튼이 없으므로 이벤트 바인딩 생략
 
         // 액션 버튼들
         document.getElementById('share-btn').addEventListener('click', this.shareResult.bind(this));
         document.getElementById('retry-btn').addEventListener('click', this.resetAnalysis.bind(this));
 
-        // 광고 관련
-        document.getElementById('skip-ad').addEventListener('click', this.skipAd.bind(this));
+    // 광고 및 관련 UI 제거/비활성화
+    const skipAdEl = document.getElementById('skip-ad');
+    if (skipAdEl) skipAdEl.remove();
     }
 
     // 드래그 앤 드롭 설정
@@ -561,55 +559,15 @@ class SongLabApp {
 
     // 로그인 상태 확인
     async checkLoginStatus() {
-        const token = localStorage.getItem('songlab_token');
-        if (token) {
-            try {
-                const response = await fetch('/auth/me', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                if (response.ok) {
-                    const user = await response.json();
-                    this.showUserInfo(user);
-                } else {
-                    localStorage.removeItem('songlab_token');
-                }
-            } catch (error) {
-                localStorage.removeItem('songlab_token');
-            }
-        }
+    // Authentication removed - app will operate without user login
     }
 
     // OAuth URL 로드
     async loadAuthUrls() {
-        try {
-            const response = await fetch('/auth/urls');
-            this.authUrls = await response.json();
-        } catch (error) {
-            console.error('OAuth URL 로드 실패:', error);
-        }
+    // Authentication removed - skip loading OAuth URLs
     }
 
-    // 카카오 로그인
-    kakaoLogin() {
-        if (this.authUrls && this.authUrls.kakao_login_url) {
-            window.location.href = this.authUrls.kakao_login_url;
-        }
-    }
-
-    // 구글 로그인
-    googleLogin() {
-        if (this.authUrls && this.authUrls.google_login_url) {
-            window.location.href = this.authUrls.google_login_url;
-        }
-    }
-
-    // 로그아웃
-    logout() {
-        localStorage.removeItem('songlab_token');
-        this.currentUser = null;
-        this.hideUserInfo();
-    }
+    // Authentication functions removed
 
     // 사용자 정보 표시
     showUserInfo(user) {
@@ -685,61 +643,15 @@ class SongLabApp {
     }
 }
 
-// OAuth 콜백 처리
-function handleOAuthCallback() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const code = urlParams.get('code');
-    // state param is unused for now; if you need it later, read with urlParams.get('state')
-
-    if (code) {
-        const provider = window.location.pathname.includes('kakao') ? 'kakao' : 'google';
-
-        fetch(`/auth/${provider}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code })
-        })
-        .then(response => response.json())
-        .then(result => {
-            if (result.access_token) {
-                localStorage.setItem('songlab_token', result.access_token);
-                window.location.href = '/';
-            } else {
-                alert('로그인 실패: ' + (result.detail || '알 수 없는 오류'));
-                window.location.href = '/';
-            }
-        })
-        .catch(error => {
-            console.error('OAuth 콜백 처리 오류:', error);
-            alert('로그인 처리 중 오류 발생');
-            window.location.href = '/';
-        });
-    }
-}
+// OAuth callback handling removed
 
 // 앱 초기화
 document.addEventListener('DOMContentLoaded', () => {
-    // OAuth 콜백 페이지인지 확인
-    if (window.location.pathname.includes('/auth/') && window.location.pathname.includes('/callback')) {
-        handleOAuthCallback();
-    } else {
-        // 메인 앱 실행
-        window.songLabApp = new SongLabApp();
-    }
+    // Initialize app (authentication removed)
+    window.songLabApp = new SongLabApp();
 });
 
-// 서비스 워커 등록 (PWA)
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-            .then((registration) => {
-                console.log('SW registered: ', registration);
-            })
-            .catch((registrationError) => {
-                console.log('SW registration failed: ', registrationError);
-            });
-    });
-}
+// Service worker registration removed (PWA disabled)
 
 // Minimal navigation and mock behaviors
 document.addEventListener('DOMContentLoaded', function(){

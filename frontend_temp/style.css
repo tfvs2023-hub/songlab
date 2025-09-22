@@ -58,15 +58,7 @@ body {
 }
 
 .login-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.login-btn.kakao {
-    background: #FEE500;
-    color: #000;
-}
-
+    /* Login button styles removed (login not required) */
 .login-btn.google {
     background: white;
     color: #333;

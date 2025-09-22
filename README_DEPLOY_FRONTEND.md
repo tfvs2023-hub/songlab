@@ -13,6 +13,15 @@ Frontend deploy notes
 3) Migration note
 - The workflow includes a normalization step that rewrites absolute `http(s)://www.songlab.kr:8001/static/...` and `http(s)://www.songlab.kr:8001/...` references in HTML files to root-relative paths before creating the tarball. This avoids deploying HTML that points to a separate host/port for static assets.
 
+If you see 404s or HTML being returned for requests to `/static/*`, you have two simple options:
+
+- Fix the HTML: update `<script>`/`<link>` tags in your HTML to use root-relative paths (for example replace `/static/script.js` with `/script.js`). This is the fastest fix if your deployed files are at the repository root.
+- Serve /static: create a `/home/tfvs2023/app/dist/static/` folder on the server and copy static assets there, or use the provided `frontend_nginx_example.conf` which maps `/static/` to that folder so legacy references keep working.
+
+Utilities
+- `scripts/normalize_frontend_static_paths.sh`: run locally before packaging to rewrite `/static/` references to `/` inside `frontend_temp`.
+- `scripts/populate_dist_static.sh`: run on the server to create `/home/tfvs2023/app/dist/static/` and copy `script.js`/`style.css` there for compatibility.
+
 4) Rollback and cleanup
 - If post-deploy verification fails (style.css doesn't return 200), the workflow will automatically roll back to the previous `dist_old` directory. Old backups older than 14 days are removed automatically.
 
