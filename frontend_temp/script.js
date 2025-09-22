@@ -725,3 +725,24 @@ if ('serviceWorker' in navigator) {
             });
     });
 }
+
+// Minimal navigation and mock behaviors
+document.addEventListener('DOMContentLoaded', function(){
+  const start = document.getElementById('start-record');
+  if(start){
+    start.addEventListener('click', ()=>{
+      alert('녹음을 시작합니다. (실제 녹음 기능은 데모에서 동작하지 않습니다)');
+      // In real app, redirect to a recorder UI or start recording flow
+      window.location.href = 'result.html';
+    });
+  }
+
+  // Mock populate result values if on result page
+  if(document.getElementById('brightness')){
+    document.getElementById('brightness').textContent = '72';
+    document.getElementById('thickness').textContent = '55';
+    document.getElementById('clarity').textContent = '68';
+    document.getElementById('power').textContent = '61';
+    document.getElementById('video-list').innerHTML = '<ul><li><a href="https://www.youtube.com/" target="_blank">발성 연습 영상 1</a></li><li><a href="https://www.youtube.com/" target="_blank">호흡 연습 영상 2</a></li></ul>';
+  }
+});

@@ -9,7 +9,12 @@ Advanced 4-Axis Vocal Analysis System
 import warnings
 from typing import Dict, Optional, Tuple
 
-import essentia.standard as es
+try:
+    import essentia.standard as es
+    _ESSENTIA_AVAILABLE = True
+except Exception:
+    es = None
+    _ESSENTIA_AVAILABLE = False
 import numpy as np
 import parselmouth
 import pyloudnorm as pyln
@@ -35,17 +40,35 @@ class AdvancedVocalAnalyzer:
         """각 라이브러리별 프로세서 초기화"""
 
         # Torchaudio transforms (GPU 가속)
-        self.mel_transform = T.MelSpectrogram(
-            sample_rate=self.sr, n_fft=2048, n_mels=128
-        )
+        self.mel_transform = T.MelSpectrogram(sample_rate=self.sr, n_fft=2048, n_mels=128)
 
-        # Essentia algorithms
-        self.windowing = es.Windowing(type="hann")
-        self.spectrum = es.Spectrum()
-        self.spectral_centroid = es.SpectralCentroid()
-        self.spectral_rolloff = es.SpectralRollOff()
-        self.harmonic_peaks = es.HarmonicPeaks()
-        self.spectral_complexity = es.SpectralComplexity()
+        # Essentia-based processors when available
+        if _ESSENTIA_AVAILABLE and es is not None:
+            try:
+                self.windowing = es.Windowing(type="hann")
+                self.spectrum = es.Spectrum()
+                self.spectral_centroid = es.SpectralCentroid()
+                self.spectral_rolloff = es.SpectralRollOff()
+                self.harmonic_peaks = es.HarmonicPeaks()
+                self.spectral_complexity = es.SpectralComplexity()
+            except Exception:
+                # If essentia initialization fails at runtime, disable essentia usage
+                self.windowing = None
+                self.spectrum = None
+                self.spectral_centroid = None
+                self.spectral_rolloff = None
+                self.harmonic_peaks = None
+                self.spectral_complexity = None
+                # Safely mark module-level flag without using 'global' in nested scope
+                globals()['_ESSENTIA_AVAILABLE'] = False
+        else:
+            # Ensure attributes exist even when essentia is not available
+            self.windowing = None
+            self.spectrum = None
+            self.spectral_centroid = None
+            self.spectral_rolloff = None
+            self.harmonic_peaks = None
+            self.spectral_complexity = None
 
         # Loudness meter
         self.loudness_meter = pyln.Meter(self.sr)
@@ -54,6 +77,19 @@ class AdvancedVocalAnalyzer:
         """
         4축 보컬 분석 메인 함수
         """
+        # If essentia is not available at import/runtime, delegate to the no-essentia analyzer
+        if not _ESSENTIA_AVAILABLE:
+            try:
+                from advanced_vocal_analyzer_no_essentia import (
+                    AdvancedVocalAnalyzerNoEssentia as _NoEssentiaAnalyzer,
+                )
+
+                analyzer = _NoEssentiaAnalyzer(sample_rate=self.sr)
+                return analyzer.analyze_audio(audio_data)
+            except Exception:
+                # fall through to try the local implementation and return fallback on failure
+                pass
+
         try:
             # 오디오 로드 및 전처리
             audio = self._load_and_preprocess(audio_data)

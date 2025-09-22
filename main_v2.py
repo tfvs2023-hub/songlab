@@ -186,11 +186,25 @@ async def analyze_voice_auto(
                 "pitch_mean": fs.get("pitch_mean", 0),
             }
 
-        # YouTube 추천 비디오 가져오기
+        # 점수 보정: -100 .. +100 범위로 클램프 및 소수 한 자리로 반올림
+        def _clamp_scores(raw_scores: Dict) -> Dict:
+            out = {}
+            for k, v in raw_scores.items():
+                try:
+                    num = float(v)
+                except Exception:
+                    num = 0.0
+                num = max(-100.0, min(100.0, num))
+                out[k] = round(num, 1)
+            return out
+
+        normalized_scores = _clamp_scores(result.get("scores", {}))
+
+        # YouTube 추천 비디오 가져오기 (정규화된 점수 사용)
         youtube_videos = []
         try:
             youtube_videos = youtube_service.get_recommended_videos(
-                result["scores"], max_results=6
+                normalized_scores, max_results=6
             )
             logger.info(f"Retrieved {len(youtube_videos)} YouTube recommendations")
         except Exception as e:
@@ -201,7 +215,7 @@ async def analyze_voice_auto(
         response = {
             "status": "success",
             "analysis_id": analysis_id,
-            "scores": result["scores"],
+            "scores": normalized_scores,
             "confidence": confidence,
             "confidence_badge": confidence_badge,
             "confidence_message": confidence_message,
@@ -216,7 +230,7 @@ async def analyze_voice_auto(
             },
             "extra_info": extra_info,
             "youtube_videos": youtube_videos,  # YouTube 추천 비디오 추가
-            "mbti": generate_mbti_from_scores(result["scores"]),  # 하위 호환성
+            "mbti": generate_mbti_from_scores(normalized_scores),  # 하위 호환성
             "success": True,
         }
 

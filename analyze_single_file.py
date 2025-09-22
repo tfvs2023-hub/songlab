@@ -2,8 +2,8 @@
 단일 오디오 파일 분석 스크립트
 """
 
-import os
 import sys
+import os
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -76,7 +76,10 @@ def analyze_file(file_path):
 
 
 if __name__ == "__main__":
-    file_path = (
-        r"C:\Users\user\Desktop\FULL\female4\long_tones\forte\f4_long_forte_a.wav"
-    )
+    # Allow passing a file path via CLI, otherwise fall back to example in repo
+    if len(sys.argv) > 1:
+        file_path = sys.argv[1]
+    else:
+        file_path = r"audio_data\test.wav"
+
     analyze_file(file_path)

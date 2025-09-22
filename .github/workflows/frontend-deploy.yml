@@ -29,7 +29,7 @@ jobs:
             sudo chown -R ${{ secrets.SSH_USER }}: $TARGET_DIR || true
 
       # Upload frontend files to remote server using SCP
-      - name: Upload frontend files via SCP
+      - name: Upload frontend files via SCP to temp dir
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -37,9 +37,41 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT || '22' }}
           source: "frontend_temp/*"
-          target: "/home/tfvs2023/app/dist"
+          target: "/home/tfvs2023/app/dist_new"
 
-      # Reload nginx (or any webserver) so new files are served
+      # Atomically swap new content into place. Fallback: if scp left a nested frontend_temp, move it.
+      - name: Swap new frontend into place (atomic)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || '22' }}
+          script: |
+            set -e
+            TARGET_DIR=/home/tfvs2023/app/dist
+            TMP_DIR=/home/tfvs2023/app/dist_new
+            # If tmp dir exists, move current to backup and atomically replace
+            if [ -d "$TMP_DIR" ]; then
+              echo "New upload detected in $TMP_DIR — swapping into $TARGET_DIR"
+              sudo rm -rf "${TARGET_DIR}_old" || true
+              if [ -d "$TARGET_DIR" ]; then
+                sudo mv "$TARGET_DIR" "${TARGET_DIR}_old" || true
+              fi
+              sudo mv "$TMP_DIR" "$TARGET_DIR"
+              sudo chown -R ${{ secrets.SSH_USER }}: "$TARGET_DIR" || true
+            else
+              # Fallback: scp may have created nested frontend_temp under TARGET_DIR
+              if [ -d "$TARGET_DIR/frontend_temp" ]; then
+                echo "Found nested frontend_temp under $TARGET_DIR — moving contents into place"
+                sudo mv "$TARGET_DIR/frontend_temp"/* "$TARGET_DIR" || true
+                sudo rm -rf "$TARGET_DIR/frontend_temp" || true
+                sudo chown -R ${{ secrets.SSH_USER }}: "$TARGET_DIR" || true
+              else
+                echo "No new upload dir found; nothing to swap"
+              fi
+            fi
+
       - name: Reload nginx on server
         uses: appleboy/ssh-action@v1.0.3
         with:

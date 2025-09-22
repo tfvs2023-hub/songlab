@@ -20,7 +20,15 @@ class YouTubeService:
     """YouTube 추천 서비스"""
 
     DEFAULT_CACHE_TTL = 900  # seconds
-    FALLBACK_THUMBNAIL = "https://via.placeholder.com/480x360?text=YouTube+Search"
+    # Use an inline SVG data URI as a fallback thumbnail to avoid external DNS/image fetch
+    FALLBACK_THUMBNAIL = (
+        "data:image/svg+xml;utf8,"
+        "<svg xmlns='http://www.w3.org/2000/svg' width='480' height='360'>"
+        "<rect width='100%' height='100%' fill='%23dddddd'/>"
+        "<text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle'"
+        " font-family='Arial, Helvetica, sans-serif' font-size='20' fill='%23666'>YouTube Search</text>"
+        "</svg>"
+    )
     KEYWORD_TEMPLATES: Dict[str, Dict[str, List[str]]] = {
         "brightness": {
             "very_low": ["어두운 음색 밝히기", "포먼트 조절 보컬 레슨"],
@@ -222,6 +230,7 @@ class YouTubeService:
             return videos
 
         logger.info("YouTube API returned no videos for '%s'.", keyword)
+        # If no videos found, return a fallback search entry (but caller may filter these out)
         return [self._build_fallback(keyword, reason="검색 결과가 없습니다.")]
 
     def get_recommended_videos(self, scores: Dict, max_results: int = 6) -> List[Dict]:
@@ -252,20 +261,57 @@ class YouTubeService:
         videos: List[Dict] = []
         seen_ids = set()
 
+        # First pass: try to gather real video results (with videoId)
         for keyword in keywords:
             results = self.search_videos(keyword, max_results=3)
             for video in results:
-                video_id = video.get("videoId") or video.get("url")
-                if not video_id or video_id in seen_ids:
+                video_id = video.get("videoId")
+                # prefer entries with a concrete videoId
+                if not video_id:
                     continue
-
+                if video_id in seen_ids:
+                    continue
                 seen_ids.add(video_id)
                 videos.append(video)
-
                 if len(videos) >= max_results:
                     break
-
             if len(videos) >= max_results:
                 break
 
-        return videos[:max_results]
+        # If not enough real videos found, allow fallback search URLs to fill remaining slots
+        if len(videos) < max_results:
+            for keyword in keywords:
+                results = self.search_videos(keyword, max_results=3)
+                for video in results:
+                    video_id = video.get("videoId") or video.get("url")
+                    if not video_id or video_id in seen_ids:
+                        continue
+                    seen_ids.add(video_id)
+                    videos.append(video)
+                    if len(videos) >= max_results:
+                        break
+                if len(videos) >= max_results:
+                    break
+
+        # Ensure each returned item has a url and videoId if possible
+        normalized: List[Dict] = []
+        for v in videos[:max_results]:
+            vid = v.get("videoId")
+            url = v.get("url")
+            if not vid and url and "watch?v=" in url:
+                # extract videoId from URL
+                try:
+                    vid = url.split("watch?v=")[-1].split("&")[0]
+                except Exception:
+                    vid = None
+
+            normalized.append({
+                "videoId": vid,
+                "title": v.get("title"),
+                "description": v.get("description"),
+                "thumbnail": v.get("thumbnail") or (f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg" if vid else self.FALLBACK_THUMBNAIL),
+                "channelTitle": v.get("channelTitle"),
+                "url": v.get("url") if v.get("url") else (f"https://www.youtube.com/watch?v={vid}" if vid else f"https://www.youtube.com/results?search_query={keyword.replace(' ', '+')}")
+            })
+
+        return normalized

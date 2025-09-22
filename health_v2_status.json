@@ -1,0 +1,1 @@
+{"status":"healthy","service":"vocal-analysis-api-v2","version":"2.0.0","engines":{"lite":"active","studio":"active","auto":"active"},"features":["brightness","thickness","loudness","clarity"]}
