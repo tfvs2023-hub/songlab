@@ -18,6 +18,11 @@
 
     <link rel="stylesheet" href="/style.css">
     <link rel="icon" href="/images/favicon.ico">
+    <script>
+        // 런타임에서 프론트엔드가 호출할 API 기본 도메인
+        window.__SONGLAB_API_URL__ = 'https://songlab-268083149803.asia-northeast3.run.app';
+        console.info('SONGLAB API URL set to', window.__SONGLAB_API_URL__);
+    </script>
 </head>
 <body>
     <!-- 로딩 오버레이 -->
