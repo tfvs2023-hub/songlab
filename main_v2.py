@@ -39,11 +39,44 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 분석기 초기화
-lite_analyzer = VocalAnalyzerLite()
-studio_analyzer = VocalAnalyzerStudio()
-detector = RecordingDetector()
-youtube_service = YouTubeService()
+# 분석기 초기화 (지연 초기화: 헬스체크와 빠른 임포트를 위해 즉시 생성하지 않음)
+_lite_analyzer = None
+_studio_analyzer = None
+_detector = None
+_youtube_service = None
+
+
+def get_lite_analyzer():
+    """Lazy getter for Lite analyzer."""
+    global _lite_analyzer
+    if _lite_analyzer is None:
+        _lite_analyzer = VocalAnalyzerLite()
+    return _lite_analyzer
+
+
+def get_studio_analyzer():
+    """Lazy getter for Studio analyzer."""
+    global _studio_analyzer
+    if _studio_analyzer is None:
+        _studio_analyzer = VocalAnalyzerStudio()
+    return _studio_analyzer
+
+
+def get_detector():
+    """Lazy getter for RecordingDetector."""
+    global _detector
+    if _detector is None:
+        _detector = RecordingDetector()
+    return _detector
+
+
+def get_youtube_service():
+    """Lazy getter for YouTubeService."""
+    global _youtube_service
+    if _youtube_service is None:
+        _youtube_service = YouTubeService()
+    return _youtube_service
+
 
 # 임시 결과 저장소 (실제로는 Redis/DB 사용)
 analysis_results = {}
@@ -120,17 +153,17 @@ async def analyze_voice_auto(
                 "reason": "사용자 지정",
             }
         else:
-            detection_result = detector.detect_environment(contents)
+            detection_result = get_detector().detect_environment(contents)
             engine_type = detection_result["environment"]
 
         # 2. 적절한 엔진 선택 및 분석
         if engine_type == "studio" or detection_result.get("studio_score", 0.5) > 0.5:
             logger.info("Using Studio engine for high-quality analysis")
-            result = studio_analyzer.analyze(contents)
+            result = get_studio_analyzer().analyze(contents)
             engine_name = "studio"
         else:
             logger.info("Using Lite engine for phone-optimized analysis")
-            result = lite_analyzer.analyze(contents)
+            result = get_lite_analyzer().analyze(contents)
             engine_name = "lite"
 
         # 처리 시간
@@ -203,7 +236,7 @@ async def analyze_voice_auto(
         # YouTube 추천 비디오 가져오기 (정규화된 점수 사용)
         youtube_videos = []
         try:
-            youtube_videos = youtube_service.get_recommended_videos(
+            youtube_videos = get_youtube_service().get_recommended_videos(
                 normalized_scores, max_results=6
             )
             logger.info(f"Retrieved {len(youtube_videos)} YouTube recommendations")
