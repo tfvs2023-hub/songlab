@@ -13,9 +13,10 @@ class SongLabApp {
 
     // 초기화
     async init() {
-        this.setupEventListeners();
-        await this.checkLoginStatus();
-        await this.loadAuthUrls();
+    this.setupEventListeners();
+    // Authentication removed for demo mode: no login required
+    // await this.checkLoginStatus();
+    // await this.loadAuthUrls();
         this.setupDragAndDrop();
 
         // 런타임 API URL: 빌드 시점에 설정되지 않아도 현재 도메인을 기본값으로 사용
@@ -34,6 +35,31 @@ class SongLabApp {
         // 파일 업로드
         bindIf('file-input', 'change', this.handleFileSelect.bind(this));
         bindIf('analyze-btn', 'click', this.startAnalysis.bind(this));
+        // Hero CTA buttons (ensure they start analysis/upload flow without login)
+        bindIf('hero-analyze', 'click', (e) => {
+            e.preventDefault();
+            // If a file input exists, trigger it; otherwise start analysis flow
+            const fileInput = document.getElementById('file-input');
+            if (fileInput) {
+                fileInput.click();
+            } else {
+                this.startAnalysis();
+            }
+        });
+        bindIf('hero-demo', 'click', (e) => {
+            e.preventDefault();
+            // Demo should navigate to demo/result page rather than forcing login
+            const demoBtn = document.getElementById('hero-demo');
+            if (demoBtn) {
+                // If there's a demo handler elsewhere, prefer that; otherwise show a quick demo alert
+                if (typeof window.showDemo === 'function') {
+                    window.showDemo();
+                } else {
+                    alert('데모 모드: 샘플 결과를 확인합니다.');
+                    window.location.href = 'result.html';
+                }
+            }
+        });
 
         // 결과보기
         bindIf('show-result-btn', 'click', this.showResult.bind(this));
