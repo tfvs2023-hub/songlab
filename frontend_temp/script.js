@@ -25,26 +25,30 @@ class SongLabApp {
 
     // 이벤트 리스너 설정
     setupEventListeners() {
+        const byId = id => document.getElementById(id);
+        const bindIf = (id, evt, handler) => {
+            const node = byId(id);
+            if (node && node.addEventListener) node.addEventListener(evt, handler);
+        };
+
         // 파일 업로드
-        document.getElementById('file-input').addEventListener('change', this.handleFileSelect.bind(this));
-        document.getElementById('analyze-btn').addEventListener('click', this.startAnalysis.bind(this));
+        bindIf('file-input', 'change', this.handleFileSelect.bind(this));
+        bindIf('analyze-btn', 'click', this.startAnalysis.bind(this));
 
         // 결과보기
-        document.getElementById('show-result-btn').addEventListener('click', this.showResult.bind(this));
+        bindIf('show-result-btn', 'click', this.showResult.bind(this));
 
         // 녹음 기능
-        document.getElementById('record-btn').addEventListener('click', this.startRecording.bind(this));
-        document.getElementById('stop-recording').addEventListener('click', this.stopRecording.bind(this));
-
-    // 로그인 기능 제거: 버튼이 없으므로 이벤트 바인딩 생략
+        bindIf('record-btn', 'click', this.startRecording.bind(this));
+        bindIf('stop-recording', 'click', this.stopRecording.bind(this));
 
         // 액션 버튼들
-        document.getElementById('share-btn').addEventListener('click', this.shareResult.bind(this));
-        document.getElementById('retry-btn').addEventListener('click', this.resetAnalysis.bind(this));
+        bindIf('share-btn', 'click', this.shareResult.bind(this));
+        bindIf('retry-btn', 'click', this.resetAnalysis.bind(this));
 
-    // 광고 및 관련 UI 제거/비활성화
-    const skipAdEl = document.getElementById('skip-ad');
-    if (skipAdEl) skipAdEl.remove();
+        // 광고 및 관련 UI 제거/비활성화
+        const skipAdEl = byId('skip-ad');
+        if (skipAdEl && skipAdEl.remove) skipAdEl.remove();
     }
 
     // 드래그 앤 드롭 설정
