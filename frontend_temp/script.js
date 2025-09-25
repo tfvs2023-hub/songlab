@@ -19,8 +19,14 @@ class SongLabApp {
     // await this.loadAuthUrls();
         this.setupDragAndDrop();
 
+    // ensure consent banner appears if anon_id not present
+    this.ensureConsentUI();
+
         // 런타임 API URL: 빌드 시점에 설정되지 않아도 현재 도메인을 기본값으로 사용
         this.API_URL = (window.__SONGLAB_API_URL__ && window.__SONGLAB_API_URL__.trim()) || window.location.origin;
+        // Ensure anon_id is present when user gives consent; will be set by consent UI
+        this.anonId = this.getCookie('anon_id') || null;
+        console.info(`Using API URL: ${this.API_URL} anon_id=${this.anonId}`);
         console.info(`Using API URL: ${this.API_URL}`);
     }
 
@@ -131,6 +137,48 @@ class SongLabApp {
         this.displayFileInfo(file);
     }
 
+    // --- anonymous consent and anon_id helpers ---
+    ensureConsentUI() {
+        // if consent UI already present, skip
+        if (document.getElementById('consent-banner')) return;
+
+        const banner = document.createElement('div');
+        banner.id = 'consent-banner';
+        banner.className = 'consent-banner';
+        banner.innerHTML = `
+            <div class="consent-inner">
+                <div>분석 결과는 익명으로 수집됩니다. 추후 Google로 계정 연결 가능.</div>
+                <div><button id="consent-accept" class="btn btn--primary">동의하고 계속하기</button></div>
+            </div>`;
+        document.body.appendChild(banner);
+
+        document.getElementById('consent-accept').addEventListener('click', () => {
+            const anon = this.getCookie('anon_id') || this.generateAnonId();
+            this.setCookie('anon_id', anon, 365);
+            this.anonId = anon;
+            banner.remove();
+        });
+    }
+
+    generateAnonId() {
+        // simple RFC4122-like random id
+        return 'anon-' + ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+            (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+        );
+    }
+
+    setCookie(name, value, days) {
+        const expires = new Date(Date.now() + days * 864e5).toUTCString();
+        document.cookie = name + '=' + encodeURIComponent(value) + '; expires=' + expires + '; path=/; SameSite=Lax';
+    }
+
+    getCookie(name) {
+        return document.cookie.split('; ').reduce((r, v) => {
+            const parts = v.split('=');
+            return parts[0] === name ? decodeURIComponent(parts.slice(1).join('=')) : r;
+        }, null);
+    }
+
     // 파일 처리
     validateFile(file) {
         const maxSize = 50 * 1024 * 1024; // 50MB
@@ -193,14 +241,23 @@ class SongLabApp {
             setTimeout(() => this.showLoading('음성 특성을 추출하고 있습니다...'), 3000);
             setTimeout(() => this.showLoading('보컬 MBTI를 계산하고 있습니다...'), 8000);
 
-            // 인증 헤더 추가
+            // 인증 및 anon headers 추가
             const headers = {};
             if (this.currentUser) {
                 headers['Authorization'] = `Bearer ${localStorage.getItem('songlab_token')}`;
             }
+            if (this.anonId) {
+                headers['X-Anon-Id'] = this.anonId;
+            }
 
             // API 경로는 런타임 API_URL을 사용
-            const apiEndpoint = `${this.API_URL}/api/analyze`;
+            // Prevent double '/api' when API_URL already contains '/api'
+            let apiEndpoint;
+            if (this.API_URL && this.API_URL.endsWith('/api')) {
+                apiEndpoint = `${this.API_URL}/analyze`;
+            } else {
+                apiEndpoint = `${this.API_URL}/api/analyze`;
+            }
             const finalHeaders = Object.assign({}, headers, { 'Accept': 'application/json' });
 
             const response = await fetch(apiEndpoint, {
@@ -215,11 +272,15 @@ class SongLabApp {
                 if (result.status === 'analysis_completed') {
                     this.currentSession = result.session_id;
                     this.showAnalysisComplete();
+                } else if ((result.status === 'success' || result.success) && result.mbti) {
+                    this.currentSession = result.session_id || null;
+                    this.showAnalysisComplete();
+                    this.displayFinalResult(result);
                 } else {
-                    this.showError(result.detail || '분석 중 오류가 발생했습니다.');
+                    this.showError(this.resolveErrorMessage(result.detail, '분석 중 오류가 발생했습니다.'));
                 }
             } else {
-                this.showError(result.detail || '분석 실패');
+                this.showError(this.resolveErrorMessage(result.detail, '분석 실패'));
             }
         } catch (error) {
             console.error('분석 오류:', error);
@@ -264,7 +325,7 @@ class SongLabApp {
                     this.displayFinalResult(result);
                 }
             } else {
-                this.showError(result.detail || '결과 조회 실패');
+                this.showError(this.resolveErrorMessage(result.detail, '결과 조회 실패'));
             }
         } catch (error) {
             console.error('결과 조회 오류:', error);
@@ -352,7 +413,7 @@ class SongLabApp {
             if (response.ok) {
                 this.displayFinalResult(result);
             } else {
-                this.showError('최종 결과를 불러올 수 없습니다.');
+                this.showError(this.resolveErrorMessage(result.detail, '최종 결과를 불러올 수 없습니다.'));
             }
         } catch (error) {
             console.error('최종 결과 조회 오류:', error);
@@ -663,6 +724,14 @@ class SongLabApp {
     }
 
     // 에러 메시지 표시
+    resolveErrorMessage(detail, fallback) {
+        if (!detail) return fallback;
+        if (typeof detail === 'string') return detail;
+        if (detail.message) return detail.message;
+        if (detail.error) return detail.error;
+        return fallback;
+    }
+
     showError(message) {
         alert(`❌ ${message}`);
     }

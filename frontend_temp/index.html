@@ -1,442 +1,278 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SongLab - AI 보컬 분석</title>
-    <meta name="description" content="CREPE 딥러닝 기술로 당신의 보컬 MBTI를 분석하고 맞춤형 개선점을 제공합니다">
-
-    <!-- Google AdSense removed for development (placeholder client caused 400 errors) -->
-    <!-- To enable live ads, replace with your real AdSense client id and uncomment the script below -->
-    <!-- <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-YOUR-ADSENSE-ID"></script> -->
-
-    <!-- Open Graph -->
-    <meta property="og:title" content="SongLab - AI 보컬 분석">
-    <meta property="og:description" content="나만의 보컬 MBTI 찾기">
-    <meta property="og:image" content="/images/og-image.jpg">
-    <!-- Deployed landing copy: 내 목소리 사용설명서 — SongLab (deploy mark 2025-09-22) -->
-
-    <link rel="stylesheet" href="/style.css">
-    <link rel="icon" href="/images/favicon.ico">
-    <script>
-        // 런타임에서 프론트엔드가 호출할 API 기본 도메인
-        window.__SONGLAB_API_URL__ = 'https://songlab-268083149803.asia-northeast3.run.app';
-        console.info('SONGLAB API URL set to', window.__SONGLAB_API_URL__);
-    </script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SongLab - AI 보컬 분석</title>
+  <meta name="description" content="스마트폰으로 녹음한 음성 30초 만에 보컬 MBTI와 맞춤 피드백을 제공합니다." />
+  <meta property="og:title" content="SongLab - AI 보컬 분석" />
+  <meta property="og:description" content="내 목소리 사용설명서, SongLab" />
+  <meta property="og:image" content="/images/og-image.jpg" />
+  <link rel="icon" href="/images/favicon.ico" />
+  <link rel="stylesheet" href="./style.css" />
+  <script>
+    // Default runtime API to local proxied '/api' unless explicitly overridden
+    window.__SONGLAB_API_URL__ = window.__SONGLAB_API_URL__ || '/api';
+    console.info('SONGLAB API URL set to', window.__SONGLAB_API_URL__);
+  </script>
 </head>
 <body>
-    <!-- 로딩 오버레이 -->
-    <div id="loading-overlay" class="loading-overlay hidden">
-        <div class="loading-content">
-            <div class="loading-spinner"></div>
-            <p id="loading-text">음성을 분석 중입니다...</p>
-        </div>
+  <!-- 로딩 오버레이 -->
+  <div id="loading-overlay" class="loading-overlay hidden">
+    <div class="loading-content">
+      <div class="loading-spinner"></div>
+      <p id="loading-text">음성을 분석 중입니다...</p>
     </div>
+  </div>
 
-    <!-- 광고 모달 -->
-    <div id="ad-modal" class="ad-modal hidden">
-        <div class="ad-content">
-            <div class="ad-header">
-                <h3>잠깐! 광고를 확인해주세요</h3>
-                <div id="ad-timer" class="ad-timer">5</div>
-            </div>
-            <div id="ad-container" class="ad-display"></div>
-            <button id="skip-ad" class="skip-ad-btn hidden">광고 건너뛰기</button>
-        </div>
+  <!-- 광고 모달 -->
+  <div id="ad-modal" class="ad-modal hidden">
+    <div class="ad-card">
+      <div class="ad-header">
+        <h3>광고를 시청하시면 분석 결과가 열립니다</h3>
+        <div id="ad-timer" class="ad-timer">5</div>
+      </div>
+      <div id="ad-container" class="ad-body"></div>
+      <button id="skip-ad" class="btn btn--ghost hidden">광고 건너뛰기</button>
     </div>
+  </div>
 
-    <header class="header">
-        <div class="container">
-            <div class="nav">
-                <div class="logo">
-                    <h1>🎤 SongLab</h1>
-                    <span class="subtitle">AI 보컬 분석</span>
-                </div>
-                <div class="auth-section">
-                    <!-- Login buttons removed (not required) -->
-                </div>
-            </div>
+  <header class="site-header">
+    <div class="container nav">
+      <a class="logo" href="#">
+        <span class="logo-mark">🎤</span>
+        <div class="logo-text">
+          <span class="logo-title">SongLab</span>
+          <span class="logo-subtitle">AI Vocal Intelligence</span>
         </div>
-    </header>
+      </a>
+      <div class="header-actions">
+        <div id="auth-buttons" class="auth-buttons hidden"></div>
+        <div id="user-info" class="user-info hidden">
+          <img id="user-avatar" src="/images/avatar-placeholder.png" alt="사용자 아바타" />
+          <span id="user-name">사용자</span>
+        </div>
+      </div>
+    </div>
+  </header>
 
-    <main class="main">
-        <div class="container">
-            <!-- 히어로 섹션 -->
-                        <section class="hero hero-gradient">
-                <div class="hero-inner">
-                    <div class="hero-icon-wrap">✨</div>
-                    <h1 class="hero-brand">SongLab</h1>
-                    <p class="hero-tagline">내 목소리 사용설명서 <span>SongLab</span></p>
-                    <p class="hero-subtext">
-                        아무 강의나 보지마세요!<br>
-                        <span>SongLab이 여러분만을 위한 커리큘럼을 설계해드립니다!</span>
-                    </p>
-                    <div class="hero-badges">
-                        <span class="hero-badge">⭐ SM/JYP/HYBE 전문가 검증</span>
-                        <span class="hero-badge">🎯 95% 분석 정확도</span>
-                    </div>
-                    <!doctype html>
-                    <html lang="ko">
-                        <head>
-                            <meta charset="utf-8" />
-                            <meta name="viewport" content="width=device-width, initial-scale=1" />
-                            <title>SongLab — 내 목소리 사용설명서</title>
-                            <meta name="description" content="스마트폰 20–30초 녹음으로 밝기·두께·선명도·음압 4축 자동분석" />
-                            <meta property="og:title" content="SongLab — 내 목소리 사용설명서" />
-                            <meta property="og:description" content="스마트폰 20–30초 녹음으로 밝기·두께·선명도·음압 4축 자동분석" />
-                            <link rel="icon" href="/images/favicon.ico" />
+  <main class="main">
+    <section class="hero">
+      <div class="container hero-inner">
+        <div class="hero-copy">
+          <span class="badge">SM · JYP · HYBE 실무진 검증</span>
+          <h1>보컬 MBTI로<br />내 목소리를 해석하세요</h1>
+          <p class="lead">밝기·두께·선명도·파워 4가지 축을 95% 정확도로 분석하고 맞춤형 개선 루틴을 추천합니다.</p>
+          <div class="hero-ctas">
+            <button id="hero-analyze" class="btn btn--primary">보컬 분석 시작하기</button>
+            <button id="hero-demo" class="btn btn--ghost">샘플 결과 보기</button>
+          </div>
+          <ul class="hero-highlights">
+            <li>🎯 CREPE 기반 초정밀 피치 추출</li>
+            <li>🧠 16가지 타입 자동 분류</li>
+            <li>🎵 뮤직 디렉터 추천 곡 제공</li>
+          </ul>
+        </div>
+        <div class="hero-preview">
+          <div class="preview-card">
+            <p class="preview-label">실시간 분석 미리보기</p>
+            <h3>Bright Power</h3>
+            <div class="preview-metrics">
+              <div class="preview-metric">
+                <span>밝기</span>
+                <strong>+72</strong>
+              </div>
+              <div class="preview-metric">
+                <span>두께</span>
+                <strong>+55</strong>
+              </div>
+              <div class="preview-metric">
+                <span>선명도</span>
+                <strong>+68</strong>
+              </div>
+              <div class="preview-metric">
+                <span>파워</span>
+                <strong>+61</strong>
+              </div>
+            </div>
+            <p class="preview-footnote">샘플 데이터입니다. 실제 결과는 업로드한 음성에 따라 달라집니다.</p>
+          </div>
+        </div>
+      </div>
+    </section>
 
-                            <!-- Tailwind via CDN for static landing (suitable for small landing pages) -->
-                            <script src="https://cdn.tailwindcss.com"></script>
+    <section class="interaction-section">
+      <div class="container">
+        <div class="interaction-card">
+          <div id="upload-area" class="upload-area">
+            <input id="file-input" type="file" accept=".wav,.mp3,.m4a,.ogg,.flac" hidden />
+            <div class="upload-icon">⬆️</div>
+            <h2>음성 파일을 업로드하거나 드래그하세요</h2>
+            <p class="upload-hint">20~30초 분량의 WAV / MP3 / M4A 파일을 권장합니다.</p>
+            <div class="upload-actions">
+              <label for="file-input" class="btn btn--secondary">파일 선택</label>
+              <button id="analyze-btn" class="btn btn--primary">AI 분석 시작</button>
+            </div>
+            <div id="file-info" class="file-info hidden">
+              <span id="file-name">sample.wav</span>
+              <span id="file-size">1.2 MB</span>
+            </div>
+          </div>
 
-                            <script>
-                                // 런타임으로 주입되는 API URL을 유지합니다. 배포 스크립트가 이 줄을 덮어씁니다.
-                                window.__SONGLAB_API_URL__ = window.__SONGLAB_API_URL__ || 'https://songlab-268083149803.asia-northeast3.run.app';
-                                console.info('SONGLAB API URL set to', window.__SONGLAB_API_URL__);
-                            </script>
-                            <style>
-                                /* 작은 커스텀 스타일: 그림자 배경 강조를 위해 */
-                                .hero-glow { box-shadow: 0 30px 60px rgba(14,165,233,0.12); }
-                            </style>
-                        </head>
-                        <body class="min-h-screen bg-gradient-to-b from-white to-slate-50 text-slate-900">
-                            <!-- NAVBAR -->
-                            <header class="sticky top-0 z-40 bg-white/70 backdrop-blur border-b border-slate-200">
-                                <nav class="mx-auto max-w-6xl px-4 sm:px-6 h-16 flex items-center justify-between">
-                                    <div class="flex items-center gap-2">
-                                        <div class="h-8 w-8 rounded-xl bg-sky-600 flex items-center justify-center text-white font-bold">S</div>
-                                        <span class="font-semibold tracking-tight">SongLab</span>
-                                        <span class="ml-2 text-xs text-slate-500">내 목소리 사용설명서</span>
-                                    </div>
-                                    <div class="hidden md:flex items-center gap-6 text-sm">
-                                        <a href="#features" class="hover:text-slate-700">기능</a>
-                                        <a href="#how" class="hover:text-slate-700">사용방법</a>
-                                        <a href="#recommend" class="hover:text-slate-700">추천강의</a>
-                                        <a href="#faq" class="hover:text-slate-700">FAQ</a>
-                                    </div>
-                                    <div class="flex items-center gap-2">
-                                        <button class="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-3 py-2 text-sm font-semibold text-white hover:bg-sky-700">
-                                            무료로 시작
-                                            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
-                                        </button>
-                                    </div>
-                                </nav>
-                            </header>
+          <div class="recording-section">
+            <button id="record-btn" class="btn btn--outline">
+              🎙️ 20초 녹음으로 바로 분석
+            </button>
+            <div id="recording-controls" class="recording-controls hidden">
+              <div class="recording-status">
+                <span class="recording-dot"></span>
+                <span id="recording-time">00:00</span>
+              </div>
+              <button id="stop-recording" class="btn btn--danger">녹음 종료</button>
+            </div>
+          </div>
+        </div>
 
-                            <!-- HERO -->
-                            <main>
-                                <section class="relative">
-                                    <div class="mx-auto max-w-6xl px-4 sm:px-6 py-16 sm:py-24 grid md:grid-cols-2 gap-10 items-center">
-                                        <div>
-                                            <h1 class="text-3xl sm:text-5xl font-extrabold leading-tight">
-                                                내 목소리 사용설명서
-                                                <span class="block text-sky-600">분석 30초, 결과 즉시</span>
-                                            </h1>
-                                            <p class="mt-4 text-slate-600">스마트폰 20–30초 녹음만 올리면, 밝기·두께·선명도·음압 4축과 음성 이슈까지 자동 분석하여 추천 강의를 제공합니다.</p>
+        <div id="result-section" class="result-section hidden">
+          <div id="analysis-complete" class="analysis-card hidden">
+            <h3>분석이 완료되었습니다!</h3>
+            <p>광고 시청 후 상세 결과를 확인할 수 있어요.</p>
+            <button id="show-result-btn" class="btn btn--primary">결과 열기</button>
+          </div>
 
-                                            <div class="mt-6 flex flex-col sm:flex-row gap-3">
-                                                <button id="hero-analyze" class="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-5 py-3 font-semibold text-white hover:bg-sky-700">
-                                                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v11"/><path d="M19 11a7 7 0 01-14 0"/></svg>
-                                                    내 목소리 분석하기
-                                                </button>
-                                                <button id="hero-demo" class="inline-flex items-center gap-2 rounded-xl border px-5 py-3 hover:bg-slate-50">
-                                                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3v18l15-9z"/></svg>
-                                                    데모 보기
-                                                </button>
-                                            </div>
+          <section id="final-result" class="final-result hidden">
+            <div class="result-header">
+              <div>
+                <p class="result-label">당신의 보컬 MBTI</p>
+                <h2 id="mbti-name">Bright Power</h2>
+                <span id="mbti-code" class="mbti-code">BKCS</span>
+              </div>
+              <div class="action-buttons">
+                <button id="share-btn" class="btn btn--ghost">📤 결과 공유</button>
+                <button id="retry-btn" class="btn btn--outline">🔄 다시 분석</button>
+              </div>
+            </div>
+            <p id="mbti-desc" class="mbti-desc">
+              높은 밝기와 파워를 가진 시원한 톤입니다. 후두 하강과 복식호흡을 유지하면 고음을 안정적으로 낼 수 있어요.
+            </p>
 
-                                            <div class="mt-4 flex items-center gap-3 text-sm text-slate-500">
-                                                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>
-                                                개인정보 최소 수집, 분석 원본 보호, 1클릭 삭제 지원
-                                            </div>
-                                        </div>
-
-                                        <!-- Score Preview Card -->
-                                        <div class="relative">
-                                            <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm hero-glow">
-                                                <div class="flex items-center justify-between">
-                                                    <div class="flex items-center gap-2">
-                                                        <div class="h-10 w-10 rounded-xl bg-slate-900 text-white flex items-center justify-center">🎤</div>
-                                                        <div>
-                                                            <p class="text-sm text-slate-500">분석 미리보기</p>
-                                                            <p class="font-semibold">Sample Voice • 27s</p>
-                                                        </div>
-                                                    </div>
-                                                    <span class="text-xs rounded-full bg-sky-50 text-sky-700 px-3 py-1">v1.0 • Beta</span>
-                                                </div>
-
-                                                <div class="mt-6 grid grid-cols-2 gap-4">
-                                                    <div class="rounded-xl border p-4">
-                                                        <div class="flex items-center justify-between">
-                                                            <span class="text-sm text-slate-600">밝기</span>
-                                                            <svg class="h-4 w-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4"/></svg>
-                                                        </div>
-                                                        <div class="mt-2 text-2xl font-bold">+42</div>
-                                                        <div class="mt-3 h-2 rounded-full bg-slate-100">
-                                                            <div class="h-2 rounded-full bg-sky-500" style="width:42%"></div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="rounded-xl border p-4">
-                                                        <div class="flex items-center justify-between">
-                                                            <span class="text-sm text-slate-600">두께</span>
-                                                            <svg class="h-4 w-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4"/></svg>
-                                                        </div>
-                                                        <div class="mt-2 text-2xl font-bold">-18</div>
-                                                        <div class="mt-3 h-2 rounded-full bg-slate-100">
-                                                            <div class="h-2 rounded-full bg-slate-400" style="width:18%"></div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="rounded-xl border p-4">
-                                                        <div class="flex items-center justify-between">
-                                                            <span class="text-sm text-slate-600">선명도</span>
-                                                            <svg class="h-4 w-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4"/></svg>
-                                                        </div>
-                                                        <div class="mt-2 text-2xl font-bold">+65</div>
-                                                        <div class="mt-3 h-2 rounded-full bg-slate-100">
-                                                            <div class="h-2 rounded-full bg-sky-500" style="width:65%"></div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="rounded-xl border p-4">
-                                                        <div class="flex items-center justify-between">
-                                                            <span class="text-sm text-slate-600">음압</span>
-                                                            <svg class="h-4 w-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4"/></svg>
-                                                        </div>
-                                                        <div class="mt-2 text-2xl font-bold">-5</div>
-                                                        <div class="mt-3 h-2 rounded-full bg-slate-100">
-                                                            <div class="h-2 rounded-full bg-slate-400" style="width:5%"></div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                <div class="mt-6 rounded-xl bg-slate-50 p-4">
-                                                    <div class="flex items-center gap-2 text-sm">
-                                                        <svg class="h-4 w-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18"/></svg>
-                                                        <span class="font-semibold">진단</span>
-                                                    </div>
-                                                    <ul class="mt-2 text-sm list-disc pl-5 text-slate-600 space-y-1">
-                                                        <li>브릿지 전환 시 약간의 풀림: 내전 유지 훈련 권장</li>
-                                                        <li>음압 저하 구간 존재: 아포지오 호흡 & SOVT 루틴</li>
-                                                        <li>고음 잠재력 중상: 벨팅 가능성, 단계적 피치 상승 권고</li>
-                                                    </ul>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </section>
-
-                                <!-- FEATURES, HOW, RECOMMEND, CTA, FAQ, FOOTER sections (static copies) -->
-                                <section class="py-16 sm:py-24" id="features">
-                                    <div class="mx-auto max-w-6xl px-4 sm:px-6">
-                                        <h2 class="text-2xl sm:text-3xl font-extrabold">핵심 기능</h2>
-                                        <p class="mt-2 text-slate-600">검사부터 훈련까지, 최소한의 도구 세트로 결과를 제공합니다.</p>
-                                    </div>
-                                </section>
-
-                                <section id="how" class="py-16 bg-white">
-                                    <div class="mx-auto max-w-6xl px-4 sm:px-6">
-                                        <h2 class="text-2xl sm:text-3xl font-extrabold">사용 방법</h2>
-                                    </div>
-                                </section>
-
-                                <section id="recommend" class="py-16 sm:py-24">
-                                    <div class="mx-auto max-w-6xl px-4 sm:px-6">
-                                        <h2 class="text-2xl sm:text-3xl font-extrabold">맞춤 강의 추천</h2>
-                                    </div>
-                                </section>
-
-                                <section class="py-12">
-                                    <div class="mx-auto max-w-6xl px-4 sm:px-6">
-                                        <div class="rounded-2xl border bg-gradient-to-r from-sky-600 to-indigo-600 p-6 sm:p-10 text-white">
-                                            <div class="grid md:grid-cols-2 gap-6 items-center">
-                                                <div>
-                                                    <h3 class="text-2xl font-extrabold">지금 바로 내 목소리 분석 시작</h3>
-                                                    <p class="mt-2 text-white/80">무료 베타 기간. 30초면 충분합니다.</p>
-                                                </div>
-                                                <div class="flex flex-col sm:flex-row gap-3 justify-end">
-                                                    <button class="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 font-semibold text-slate-900 hover:bg-slate-100">녹음 업로드</button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </section>
-
-                                <section id="faq" class="py-16 bg-white">
-                                    <div class="mx-auto max-w-6xl px-4 sm:px-6">
-                                        <h2 class="text-2xl sm:text-3xl font-extrabold">자주 묻는 질문</h2>
-                                    </div>
-                                </section>
-
-                                <footer class="py-10 border-t bg-white">
-                                    <div class="mx-auto max-w-6xl px-4 sm:px-6">
-                                        <div class="flex items-center justify-between">
-                                            <div class="flex items-center gap-2">
-                                                <div class="h-8 w-8 rounded-xl bg-sky-600 text-white font-bold grid place-items-center">S</div>
-                                                <span class="font-semibold">SongLab</span>
-                                            </div>
-                                            <div class="text-xs text-slate-400">© 2025 SongLab. All rights reserved.</div>
-                                        </div>
-                                    </div>
-                                </footer>
-                            </main>
-
-                            <script src="/script.js"></script>
-                        </body>
-                    </html>
-                        </button>
-                    </div>
-
-                    <!-- 최종 결과 -->
-                    <div id="final-result" class="final-result hidden">
-                        <div class="result-header">
-                            <h2>당신의 보컬 MBTI</h2>
-                        </div>
-
-                        <div class="mbti-card">
-                            <div class="mbti-type">
-                                <div id="mbti-icon" class="mbti-icon">🎵</div>
-                                <div class="mbti-info">
-                                    <h3 id="mbti-name">분석 중...</h3>
-                                    <p id="mbti-code">----</p>
-                                    <p id="mbti-desc">설명을 불러오는 중...</p>
-                                </div>
-                            </div>
-
-                            <div class="mbti-scores">
-                                <h4>🎯 음성 특성 점수</h4>
-                                <div class="score-bars">
-                                    <div class="score-item">
-                                        <label>밝기 (Brightness)</label>
-                                        <div class="score-bar">
-                                            <div id="brightness-bar" class="score-fill"></div>
-                                            <span id="brightness-score">0</span>
-                                        </div>
-                                    </div>
-                                    <div class="score-item">
-                                        <label>두께 (Thickness)</label>
-                                        <div class="score-bar">
-                                            <div id="thickness-bar" class="score-fill"></div>
-                                            <span id="thickness-score">0</span>
-                                        </div>
-                                    </div>
-                                    <div class="score-item">
-                                        <label>선명도 (Clarity)</label>
-                                        <div class="score-bar">
-                                            <div id="clarity-bar" class="score-fill"></div>
-                                            <span id="clarity-score">0</span>
-                                        </div>
-                                    </div>
-                                    <div class="score-item">
-                                        <label>파워 (Power)</label>
-                                        <div class="score-bar">
-                                            <div id="power-bar" class="score-fill"></div>
-                                            <span id="power-score">0</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="vocal-range">
-                                <h4>🎼 음역대 정보</h4>
-                                <div class="range-info">
-                                    <div class="range-item">
-                                        <span class="range-label">현재 최고음</span>
-                                        <span id="current-note" class="range-value">분석 중...</span>
-                                    </div>
-                                    <div class="range-item">
-                                        <span class="range-label">잠재 최고음</span>
-                                        <span id="potential-note" class="range-value">분석 중...</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="feedback-section">
-                                <div class="pros-cons">
-                                    <div class="pros">
-                                        <h4>✨ 장점</h4>
-                                        <ul id="pros-list"></ul>
-                                    </div>
-                                    <div class="cons">
-                                        <h4>💡 개선점</h4>
-                                        <ul id="cons-list"></ul>
-                                    </div>
-                                </div>
-
-                                <div class="recommended-songs">
-                                    <h4>🎵 추천곡</h4>
-                                    <div id="songs-list" class="songs-list"></div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div id="youtube-section" class="youtube-section hidden">
-                            <h4>🎬 추천 학습 영상</h4>
-                            <p class="youtube-subtext">분석 결과를 기반으로 연습에 도움이 될 만한 영상을 모았습니다.</p>
-                            <div id="youtube-list" class="youtube-list"></div>
-                        </div>
-
-                        <div class="action-buttons">
-                            <button id="share-btn" class="share-btn">
-                                📤 결과 공유하기
-                            </button>
-                            <button id="retry-btn" class="retry-btn">
-                                🔄 다시 분석하기
-                            </button>
-                        </div>
-                    </div>
+            <div class="metrics-grid">
+              <div class="metric-card">
+                <div class="metric-header">
+                  <span>밝기</span>
+                  <strong id="brightness-score">+0</strong>
                 </div>
+                <div class="score-track">
+                  <div id="brightness-bar" class="score-fill" style="width:0"></div>
+                </div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-header">
+                  <span>두께</span>
+                  <strong id="thickness-score">+0</strong>
+                </div>
+                <div class="score-track">
+                  <div id="thickness-bar" class="score-fill" style="width:0"></div>
+                </div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-header">
+                  <span>선명도</span>
+                  <strong id="clarity-score">+0</strong>
+                </div>
+                <div class="score-track">
+                  <div id="clarity-bar" class="score-fill" style="width:0"></div>
+                </div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-header">
+                  <span>파워</span>
+                  <strong id="power-score">+0</strong>
+                </div>
+                <div class="score-track">
+                  <div id="power-bar" class="score-fill" style="width:0"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="range-card">
+              <h3>🎼 음역대 인사이트</h3>
+              <div class="range-grid">
+                <div class="range-item">
+                  <span class="range-label">현재 최고음</span>
+                  <strong id="current-note" class="range-value">분석 중...</strong>
+                </div>
+                <div class="range-item">
+                  <span class="range-label">잠재 최고음</span>
+                  <strong id="potential-note" class="range-value">분석 중...</strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="feedback-grid">
+              <div class="feedback-card">
+                <h3>✨ 장점</h3>
+                <ul id="pros-list" class="feedback-list"></ul>
+              </div>
+              <div class="feedback-card">
+                <h3>💡 개선점</h3>
+                <ul id="cons-list" class="feedback-list"></ul>
+              </div>
+              <div class="feedback-card">
+                <h3>🎵 추천곡</h3>
+                <div id="songs-list" class="songs-list"></div>
+              </div>
+            </div>
+
+            <section id="youtube-section" class="youtube-section hidden">
+              <h3>🎬 추천 학습 영상</h3>
+              <p class="youtube-hint">분석 결과를 토대로 발성·호흡·음역 확장을 돕는 콘텐츠입니다.</p>
+              <div id="youtube-list" class="youtube-list"></div>
             </section>
-
-            <!-- 광고 섹션 removed -->
-
-            <!-- 기능 소개 -->
-            <section class="features-section">
-                <h2>🔬 정밀한 AI 분석 기술</h2>
-                <div class="features-grid">
-                    <div class="feature-card">
-                        <div class="feature-icon">🎯</div>
-                        <h3>CREPE 피치 분석</h3>
-                        <p>CNN 기반 고정밀 피치 추출로 ±10 cents 정확도</p>
-                    </div>
-                    <div class="feature-card">
-                        <div class="feature-icon">🧠</div>
-                        <h3>4축 MBTI 분류</h3>
-                        <p>밝기, 두께, 선명도, 파워 4개 축으로 16가지 타입 분류</p>
-                    </div>
-                    <div class="feature-card">
-                        <div class="feature-icon">📈</div>
-                        <h3>음역대 예측</h3>
-                        <p>현재 최고음과 잠재적 음역 확장 가능성 분석</p>
-                    </div>
-                    <div class="feature-card">
-                        <div class="feature-icon">🎵</div>
-                        <h3>맞춤형 피드백</h3>
-                        <p>개인별 장단점 분석과 실용적인 개선 방향 제시</p>
-                    </div>
-                </div>
-            </section>
+          </section>
         </div>
-    </main>
+      </div>
+    </section>
 
-    <footer class="footer">
-        <div class="container">
-            <div class="footer-content">
-                <div class="footer-info">
-                    <h3>🎤 SongLab</h3>
-                    <p>AI 기술로 더 나은 보컬을 만들어갑니다</p>
-                </div>
-                <div class="footer-links">
-                    <a href="/privacy">개인정보처리방침</a>
-                    <a href="/terms">이용약관</a>
-                    <a href="/contact">문의하기</a>
-                </div>
-            </div>
-            <div class="footer-bottom">
-                <p>&copy; 2024 SongLab. All rights reserved.</p>
-            </div>
+    <section class="trust-section">
+      <div class="container">
+        <h2>SongLab이 사랑받는 이유</h2>
+        <div class="trust-grid">
+          <article class="trust-card">
+            <span class="trust-icon">🔬</span>
+            <h3>정량적 분석</h3>
+            <p>딥러닝이 추출한 128개 보컬 특징을 바탕으로 타입을 판정합니다.</p>
+          </article>
+          <article class="trust-card">
+            <span class="trust-icon">🧑‍🎤</span>
+            <h3>전문가 큐레이션</h3>
+            <p>실제 보컬 트레이너의 코멘트를 학습해 장점과 보완점을 안내합니다.</p>
+          </article>
+          <article class="trust-card">
+            <span class="trust-icon">⚡</span>
+            <h3>즉시 피드백</h3>
+            <p>업로드 후 15초 내 결과를 제공하고, 학습 플랜까지 제안합니다.</p>
+          </article>
         </div>
-    </footer>
+      </div>
+    </section>
+  </main>
 
-    <script src="/script.js"></script>
-    <!-- AdSense push removed for development -->
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div>
+        <p class="footer-title">SongLab</p>
+        <p class="footer-desc">AI 기술로 더 나은 목소리를 설계합니다.</p>
+      </div>
+      <nav class="footer-links">
+        <a href="/privacy">개인정보처리방침</a>
+        <a href="/terms">이용약관</a>
+        <a href="/contact">문의하기</a>
+      </nav>
+    </div>
+    <p class="footer-copy">© 2024 SongLab. All rights reserved.</p>
+  </footer>
+
+  <script src="./script.js"></script>
 </body>
 </html>

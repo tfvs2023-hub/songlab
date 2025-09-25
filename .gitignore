@@ -74,3 +74,8 @@ audio_data/
 # Uncomment if you want to ignore local deploy scripts
 # entrypoint.sh
 # scripts/deploy_backend.sh
+
+# Ignore local environment variables, uploaded files, and backups
+.env
+uploads/
+private_backup/

@@ -1,0 +1,49 @@
+name: Frontend Staging Deploy
+
+on:
+  push:
+    branches: [ 'staging' ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Archive frontend
+        run: |
+          tar -czf frontend_staging.tar.gz -C frontend_temp .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-staging-archive
+          path: frontend_staging.tar.gz
+
+      - name: Deploy to server via scp
+        env:
+          DEPLOY_HOST: ${{ secrets.SSH_HOST }}
+          DEPLOY_USER: ${{ secrets.SSH_USER }}
+          DEPLOY_PATH: /home/tfvs2023/app/staging
+        run: |
+          mkdir -p deploy_tmp
+          mv frontend_staging.tar.gz deploy_tmp/
+          scp -o StrictHostKeyChecking=no deploy_tmp/frontend_staging.tar.gz "${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }}:/tmp/frontend_staging.tar.gz"
+
+      - name: Trigger remote deploy script
+        env:
+          DEPLOY_HOST: ${{ secrets.SSH_HOST }}
+          DEPLOY_USER: ${{ secrets.SSH_USER }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          echo "$SSH_PRIVATE_KEY" > private_key
+          chmod 600 private_key
+          ssh -o StrictHostKeyChecking=no -i private_key "${{ env.DEPLOY_USER }}@${{ env.DEPLOY_HOST }}" 'bash -s' << 'EOF'
+            set -e
+            sudo mkdir -p /home/tfvs2023/app/staging
+            sudo tar -xzf /tmp/frontend_staging.tar.gz -C /home/tfvs2023/app/staging
+            sudo chown -R www-data:www-data /home/tfvs2023/app/staging || true
+            # ensure utf-8 header by touching a .htaccess equivalent not used; nginx config controls charset
+            echo "deployed"
+          EOF

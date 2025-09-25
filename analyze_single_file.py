@@ -8,7 +8,6 @@ import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 import soundfile as sf
-
 from advanced_vocal_analyzer_no_essentia import \
     AdvancedVocalAnalyzerNoEssentia as AdvancedVocalAnalyzer
 

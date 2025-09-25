@@ -98,7 +98,7 @@ def test_studio_analyze(file_path):
     else:
         print("✅ 양호한 Dynamic Range")
 
-    return result
+    assert result is not None
 
 
 if __name__ == "__main__":

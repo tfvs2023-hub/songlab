@@ -34,7 +34,9 @@ class VocalAnalyzerLite:
 
     def __init__(self, sample_rate: int = 16000):
         self.sr = sample_rate
-        self.target_lufs = -23.0
+        from config import TARGET_LUFS
+
+        self.target_lufs = TARGET_LUFS
         if WEBRTCVAD_AVAILABLE:
             self.vad = webrtcvad.Vad(2)  # 중간 민감도
         else:
@@ -231,7 +233,13 @@ class VocalAnalyzerLite:
                 if len(cepstrum_range) > 0:
                     peak = np.max(cepstrum_range)
                     baseline = np.median(cepstrum_range)
-                    cpp = 20 * np.log10(peak / (baseline + 1e-10))
+
+                    # Ensure argument to log10 is positive to avoid RuntimeWarning
+                    argument = peak / (baseline + 1e-10)
+                    if argument <= 0:
+                        return 0.0
+
+                    cpp = 20 * np.log10(argument)
                     if not np.isnan(cpp) and not np.isinf(cpp):
                         return float(cpp)
         except:
@@ -295,18 +303,8 @@ class VocalAnalyzerLite:
         """
         4축 점수 계산 (z-score 기반)
         """
-        # Reference statistics (미리 계산된 평균/표준편차)
-        ref_stats = {
-            "midhi_ratio": (0.3, 0.15),
-            "spectral_centroid": (1500, 500),
-            "low_ratio": (0.2, 0.1),
-            "h1_h2": (5, 3),
-            "rms_mean": (0.05, 0.02),
-            "rms_std": (0.01, 0.005),
-            "cpp_rel": (15, 5),
-            "zcr": (0.05, 0.02),
-            "pitch_dropout": (0.2, 0.1),
-        }
+        # Reference statistics from config file
+        from config import LITE_ENGINE_REF_STATS as ref_stats
 
         def z_score(value, ref_mean, ref_std):
             return (value - ref_mean) / (ref_std + 1e-10)

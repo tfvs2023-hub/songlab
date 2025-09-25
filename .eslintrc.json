@@ -21,5 +21,13 @@
   },
   "rules": {
     "no-console": "off"
-  }
+  },
+  "overrides": [
+    {
+      "files": ["vite.config.js", "scripts/**/*.js"],
+      "env": {
+        "node": true
+      }
+    }
+  ]
 }

@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SongLab</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+    <!-- 최종 결과 -->
+    <div id="final-result" class="final-result hidden">
+                        <div class="result-header">
+                            <h2>당신의 보컬 MBTI</h2>
+                        </div>
+
+                        <div class="mbti-card">
+                            <div class="mbti-type">
+                                <div id="mbti-icon" class="mbti-icon">🎵</div>
+                                <div class="mbti-info">
+                                    <h3 id="mbti-name">분석 중...</h3>
+                                    <p id="mbti-code">----</p>
+                                    <p id="mbti-desc">설명을 불러오는 중...</p>
+                                </div>
+                            </div>
+
+                            <div class="mbti-scores">
+                                <h4>🎯 음성 특성 점수</h4>
+                                <div class="score-bars">
+                                    <div class="score-item">
+                                        <label>밝기 (Brightness)</label>
+                                        <div class="score-bar">
+                                            <div id="brightness-bar" class="score-fill"></div>
+                                            <span id="brightness-score">0</span>
+                                        </div>
+                                    </div>
+                                    <div class="score-item">
+                                        <label>두께 (Thickness)</label>
+                                        <div class="score-bar">
+                                            <div id="thickness-bar" class="score-fill"></div>
+                                            <span id="thickness-score">0</span>
+                                        </div>
+                                    </div>
+                                    <div class="score-item">
+                                        <label>선명도 (Clarity)</label>
+                                        <div class="score-bar">
+                                            <div id="clarity-bar" class="score-fill"></div>
+                                            <span id="clarity-score">0</span>
+                                        </div>
+                                    </div>
+                                    <div class="score-item">
+                                        <label>파워 (Power)</label>
+                                        <div class="score-bar">
+                                            <div id="power-bar" class="score-fill"></div>
+                                            <span id="power-score">0</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="vocal-range">
+                                <h4>🎼 음역대 정보</h4>
+                                <div class="range-info">
+                                    <div class="range-item">
+                                        <span class="range-label">현재 최고음</span>
+                                        <span id="current-note" class="range-value">분석 중...</span>
+                                    </div>
+                                    <div class="range-item">
+                                        <span class="range-label">잠재 최고음</span>
+                                        <span id="potential-note" class="range-value">분석 중...</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="feedback-section">
+                                <div class="pros-cons">
+                                    <div class="pros">
+                                        <h4>✨ 장점</h4>
+                                        <ul id="pros-list"></ul>
+                                    </div>
+                                    <div class="cons">
+                                        <h4>💡 개선점</h4>
+                                        <ul id="cons-list"></ul>
+                                    </div>
+                                </div>
+
+                                <div class="recommended-songs">
+                                    <h4>🎵 추천곡</h4>
+                                    <div id="songs-list" class="songs-list"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="youtube-section" class="youtube-section hidden">
+                            <h4>🎬 추천 학습 영상</h4>
+                            <p class="youtube-subtext">분석 결과를 기반으로 연습에 도움이 될 만한 영상을 모았습니다.</p>
+                            <div id="youtube-list" class="youtube-list"></div>
+                        </div>
+
+                        <div class="action-buttons">
+                            <button id="share-btn" class="share-btn">
+                                📤 결과 공유하기
+                            </button>
+                            <button id="retry-btn" class="retry-btn">
+                                🔄 다시 분석하기
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 광고 섹션 removed -->
+
+            <!-- 기능 소개 -->
+            <section class="features-section">
+                <h2>🔬 정밀한 AI 분석 기술</h2>
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">🎯</div>
+                        <h3>CREPE 피치 분석</h3>
+                        <p>CNN 기반 고정밀 피치 추출로 ±10 cents 정확도</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🧠</div>
+                        <h3>4축 MBTI 분류</h3>
+                        <p>밝기, 두께, 선명도, 파워 4개 축으로 16가지 타입 분류</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">📈</div>
+                        <h3>음역대 예측</h3>
+                        <p>현재 최고음과 잠재적 음역 확장 가능성 분석</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🎵</div>
+                        <h3>맞춤형 피드백</h3>
+                        <p>개인별 장단점 분석과 실용적인 개선 방향 제시</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-info">
+                    <h3>🎤 SongLab</h3>
+                    <p>AI 기술로 더 나은 보컬을 만들어갑니다</p>
+                </div>
+                <div class="footer-links">
+                    <a href="/privacy">개인정보처리방침</a>
+                    <a href="/terms">이용약관</a>
+                    <a href="/contact">문의하기</a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 SongLab. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="/script.js"></script>
+</body>
+</html>
+    <!-- AdSense push removed for development -->
+</body>
+</html>

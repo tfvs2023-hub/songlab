@@ -1,40 +1,33 @@
-﻿"""
-Advanced Vocal Analysis API
-4축 보컬 분석 시스템 - FastAPI 통합
+"""
+Advanced Vocal Analysis API v2.0
+폰 녹음 최적화 4축 분석 시스템
+Lite(즉시) + Pro(정밀) 듀얼 엔진
 """
 
 import logging
-import os
+import time
+import uuid
+from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import (BackgroundTasks, FastAPI, File, HTTPException, Request,
+                     UploadFile)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 
-try:
-    from advanced_vocal_analyzer import AdvancedVocalAnalyzer  # type: ignore
-except Exception as exc:  # pragma: no cover - optional dependency
-    AdvancedVocalAnalyzer = None  # type: ignore
-    _ADVANCED_ANALYZER_IMPORT_ERROR = exc
-else:
-    _ADVANCED_ANALYZER_IMPORT_ERROR = None
+from recording_detector import RecordingDetector
 
-try:
-    from advanced_vocal_analyzer_no_essentia import \
-        AdvancedVocalAnalyzerNoEssentia  # type: ignore
-except Exception as exc:  # pragma: no cover - optional dependency
-    AdvancedVocalAnalyzerNoEssentia = None  # type: ignore
-    _NO_ESSENTIA_ANALYZER_IMPORT_ERROR = exc
-else:
-    _NO_ESSENTIA_ANALYZER_IMPORT_ERROR = None
+# 분석 엔진들 will be imported lazily inside getters to avoid
+# hard dependency on heavy native libs at import time (e.g. parselmouth)
 
 # Logging 설정
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
-    title="Advanced Vocal Analysis API",
-    description="고급 4축 보컬 분석 시스템 (밝기, 두께, 성대내전, 음압)",
+    title="Vocal Analysis API v2.0",
+    description="폰 녹음 최적화 4축 보컬 분석 (밝기, 두께, 음압, 선명도)",
     version="2.0.0",
 )
 
@@ -46,260 +39,400 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 분석기 초기화 (환경 감안)
-analyzer: Optional[object] = None
-analyzer_backend: Optional[str] = None
-analyzer_init_errors: Dict[str, str] = {}
-_ANALYZER_BACKEND_ENV = os.getenv("ANALYZER_BACKEND", "auto").lower()
+# 분석기 초기화 (지연 초기화: 헬스체크와 빠른 임포트를 위해 즉시 생성하지 않음)
+_lite_analyzer = None
+_studio_analyzer = None
+_detector = None
+_youtube_service = None
 
 
-def _initialize_analyzer() -> Optional[object]:
-    """환경에 맞춰 사용할 분석 엔진을 초기화합니다."""
-    global analyzer_backend
-
-    if _ANALYZER_BACKEND_ENV in {"advanced", "pro"}:
-        backend_preference: List[str] = ["advanced"]
-    elif _ANALYZER_BACKEND_ENV in {"no_essentia", "fallback"}:
-        backend_preference = ["no_essentia"]
-    else:
-        backend_preference = ["advanced", "no_essentia"]
-
-    for backend_candidate in backend_preference:
-        if backend_candidate == "advanced":
-            if AdvancedVocalAnalyzer is None:
-                if _ADVANCED_ANALYZER_IMPORT_ERROR is not None:
-                    analyzer_init_errors["advanced"] = repr(
-                        _ADVANCED_ANALYZER_IMPORT_ERROR
-                    )
-                continue
-            try:
-                instance = AdvancedVocalAnalyzer()
-                analyzer_backend = "advanced"
-                logger.info("Loaded AdvancedVocalAnalyzer backend.")
-                return instance
-            except Exception as exc:  # noqa: BLE001
-                analyzer_init_errors["advanced"] = repr(exc)
-                logger.warning("Advanced analyzer init failed: %s", exc)
-        elif backend_candidate == "no_essentia":
-            if AdvancedVocalAnalyzerNoEssentia is None:
-                if _NO_ESSENTIA_ANALYZER_IMPORT_ERROR is not None:
-                    analyzer_init_errors["no_essentia"] = repr(
-                        _NO_ESSENTIA_ANALYZER_IMPORT_ERROR
-                    )
-                continue
-            try:
-                instance = AdvancedVocalAnalyzerNoEssentia()
-                analyzer_backend = "no_essentia"
-                logger.info("Loaded AdvancedVocalAnalyzerNoEssentia backend.")
-                return instance
-            except Exception as exc:  # noqa: BLE001
-                analyzer_init_errors["no_essentia"] = repr(exc)
-                logger.warning("No-Essentia analyzer init failed: %s", exc)
-
-    logger.error(
-        "Unable to initialize analyzer backend. errors=%s", analyzer_init_errors
-    )
-    return None
+def get_lite_analyzer():
+    """Lazy getter for Lite analyzer."""
+    global _lite_analyzer
+    if _lite_analyzer is None:
+        try:
+            from vocal_analyzer_lite import VocalAnalyzerLite
+        except ImportError as e:
+            # keep import-time lightweight; raise when actually used
+            raise RuntimeError("Lite analyzer not available: %s" % e)
+        _lite_analyzer = VocalAnalyzerLite()
+    return _lite_analyzer
 
 
-def _get_analyzer() -> Optional[object]:
-    """현재 사용 가능한 분석기를 반환합니다."""
-    global analyzer
+def get_studio_analyzer():
+    """Lazy getter for Studio analyzer."""
+    global _studio_analyzer
+    if _studio_analyzer is None:
+        try:
+            from vocal_analyzer_studio import VocalAnalyzerStudio
+        except ImportError as e:
+            raise RuntimeError("Studio analyzer not available: %s" % e)
+        _studio_analyzer = VocalAnalyzerStudio()
+    return _studio_analyzer
 
-    if analyzer is None:
-        analyzer = _initialize_analyzer()
-    return analyzer
+
+def get_detector():
+    """Lazy getter for RecordingDetector."""
+    global _detector
+    if _detector is None:
+        _detector = RecordingDetector()
+    return _detector
+
+
+def get_youtube_service():
+    """Lazy getter for YouTubeService."""
+    global _youtube_service
+    if _youtube_service is None:
+        try:
+            from youtube_service import YouTubeService
+        except ImportError as e:
+            # YouTube recommendations are optional; provide a minimal stub
+            class YouTubeService:
+                def get_recommended_videos(self, *args, **kwargs):
+                    return []
+
+            _youtube_service = YouTubeService()
+            return _youtube_service
+        _youtube_service = YouTubeService()
+    return _youtube_service
+
+
+# 임시 결과 저장소 (실제로는 Redis/DB 사용)
+analysis_results = {}
+
+
+import json
+# Simple uploads storage (local filesystem + metadata log) for anonymous collection
+import os
+
+UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+METADATA_LOG = os.path.join(UPLOAD_DIR, "metadata.log")
+
+
+@app.post("/api/upload")
+async def upload_audio(request: Request, file: UploadFile = File(...)):
+    """Accept audio uploads, store file locally and append metadata (anon_id, timestamp)
+
+    This is a minimal, low-risk implementation for anonymous data collection. Files are
+    written to `uploads/` and metadata appended as JSON lines to `uploads/metadata.log`.
+    """
+    try:
+        contents = await file.read()
+        if not contents:
+            raise HTTPException(status_code=400, detail="Empty file")
+
+        # enforce max size 50MB
+        if len(contents) > 50 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="File too large")
+
+        ts = datetime.utcnow().isoformat() + "Z"
+        safe_name = (
+            f"{int(time.time())}_{uuid.uuid4().hex}_{os.path.basename(file.filename)}"
+        )
+        file_path = os.path.join(UPLOAD_DIR, safe_name)
+
+        with open(file_path, "wb") as f:
+            f.write(contents)
+
+        # collect metadata: try to read anon_id from header or cookie
+        anon_id = None
+        if "x-anon-id" in request.headers:
+            anon_id = request.headers.get("x-anon-id")
+        else:
+            # attempt to read Cookie header
+            cookie = request.headers.get("cookie", "")
+            for part in cookie.split(";"):
+                if "=" in part:
+                    k, v = part.strip().split("=", 1)
+                    if k == "anon_id":
+                        anon_id = v
+                        break
+
+        metadata = {
+            "filename": safe_name,
+            "original_filename": file.filename,
+            "anon_id": anon_id,
+            "timestamp": ts,
+            "size": len(contents),
+        }
+
+        # append metadata as JSON line
+        with open(METADATA_LOG, "a", encoding="utf-8") as ml:
+            ml.write(json.dumps(metadata, ensure_ascii=False) + "\n")
+
+        return {"status": "success", "file": safe_name, "metadata": metadata}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Upload error")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class AnalysisResult(BaseModel):
+    """분석 결과 모델"""
+
+    brightness: float
+    thickness: float
+    loudness: float
+    clarity: float
+    confidence: float
+    quality: Dict
+    engine: str
+    model: Optional[str] = None
+
+
+class FeedbackData(BaseModel):
+    """사용자 피드백 모델"""
+
+    analysis_id: str
+    brightness: float
+    thickness: float
+    loudness: float
+    clarity: float
 
 
 @app.post("/api/analyze")
-async def analyze_voice(file: UploadFile = File(...)):
+async def analyze_voice_auto(
+    file: UploadFile = File(...),
+    force_engine: Optional[str] = None,
+    background_tasks: BackgroundTasks = None,
+):
     """
-    고급 4축 보컬 분석
-    - brightness: 밝기 (-100 어두움 ~ +100 밝음)
-    - thickness: 음색 두께 (-100 얇음 ~ +100 두꺼움)
-    - adduction: 성대 내전 정도 (-100 불완전 ~ +100 완전)
-    - spl: 음압/소리 세기 (-100 약함 ~ +100 강함)
+    자동 엔진 선택 분석
+    환경 감지 후 Lite(폰) 또는 Studio(고품질) 엔진 선택
+    force_engine: 'lite' 또는 'studio'로 강제 지정 가능
     """
+    analysis_id = str(uuid.uuid4())
+    start_time = time.time()
+
     try:
-        # 파일 타입 검증
-        if not file.content_type or not file.content_type.startswith("audio/"):
+        # 파일 타입 검증: 일부 clients (curl) may omit content-type; allow based on filename
+        allowed_exts = (".wav", ".mp3", ".flac", ".ogg", ".m4a")
+        content_type_ok = bool(
+            file.content_type and file.content_type.startswith("audio/")
+        )
+        filename_ok = bool(
+            file.filename and file.filename.lower().endswith(allowed_exts)
+        )
+        logger.info(f"Upload content_type={file.content_type} filename={file.filename}")
+        if not content_type_ok and not filename_ok:
             raise HTTPException(
                 status_code=400,
                 detail="Invalid file type. Please upload an audio file.",
             )
 
-        # 분석기 준비
-        active_analyzer = _get_analyzer()
-        if active_analyzer is None:
+        # 파일 크기 체크 (최대 50MB)
+        contents = await file.read()
+        if len(contents) > 50 * 1024 * 1024:
             raise HTTPException(
-                status_code=503,
-                detail={
-                    "message": "Analyzer backend is not available.",
-                    "preferred_backend": _ANALYZER_BACKEND_ENV,
-                    "backend": analyzer_backend,
-                    "errors": dict(analyzer_init_errors),
-                },
+                status_code=400, detail="File too large. Maximum size is 50MB."
             )
 
-        # 오디오 데이터 읽기
-        audio_data = await file.read()
-        logger.info(
-            "Analyzing audio file '%s' with backend '%s'",
-            file.filename,
-            analyzer_backend,
-        )
+        logger.info(f"Analyzing file: {file.filename}")
 
-        # 4축 분석 수행
-        scores = active_analyzer.analyze_audio(audio_data)
+        # 1. 강제 엔진 지정이 없으면 환경 감지
+        if force_engine:
+            engine_type = force_engine.lower()
+            detection_result = {
+                "environment": engine_type,
+                "confidence": 1.0,
+                "reason": "사용자 지정",
+            }
+        else:
+            detection_result = get_detector().detect_environment(contents)
+            engine_type = detection_result["environment"]
 
-        # MBTI 스타일 결과 생성 (기존 호환성)
-        mbti_result = generate_advanced_mbti_style(scores)
+        # 2. 적절한 엔진 선택 및 분석
+        if engine_type == "studio" or detection_result.get("studio_score", 0.5) > 0.5:
+            logger.info("Using Studio engine for high-quality analysis")
+            result = get_studio_analyzer().analyze(contents)
+            engine_name = "studio"
+        else:
+            logger.info("Using Lite engine for phone-optimized analysis")
+            result = get_lite_analyzer().analyze(contents)
+            engine_name = "lite"
 
-        result = {
+        # 처리 시간
+        processing_time = time.time() - start_time
+
+        # 품질 게이트 체크
+        quality = result["quality"]
+        if quality["snr"] < 15:
+            warning = "낮은 SNR 감지. 조용한 환경에서 재녹음을 권장합니다."
+        elif quality["clipping_percent"] > 3:
+            warning = "클리핑 감지. 마이크에서 조금 떨어져서 녹음해주세요."
+        elif quality["silence_percent"] > 60:
+            warning = "무음 구간이 너무 많습니다. 더 크게 녹음해주세요."
+        else:
+            warning = None
+
+        # 신뢰도 기반 메시지
+        confidence = result["confidence"]
+        if confidence < 0.3:
+            confidence_badge = "low"
+            confidence_message = "녹음 품질이 낮아 정확도가 제한적입니다."
+        elif confidence < 0.7:
+            confidence_badge = "medium"
+            confidence_message = "분석 신뢰도 보통"
+        else:
+            confidence_badge = "high"
+            confidence_message = "높은 신뢰도"
+
+        # 결과 저장 (Pro 분석용)
+        analysis_results[analysis_id] = {
+            "file_data": contents,
+            "lite_result": result,
+            "timestamp": datetime.now(),
+        }
+
+        # Pro 분석 백그라운드 실행 (옵션)
+        # if background_tasks:
+        #     background_tasks.add_task(analyze_with_pro, analysis_id, contents)
+
+        # Studio 엔진 특별 정보 추가
+        extra_info = {}
+        if engine_name == "studio" and "features_summary" in result:
+            fs = result["features_summary"]
+            extra_info = {
+                "hnr": fs.get("hnr", 0),
+                "jitter": fs.get("jitter", 0),
+                "shimmer": fs.get("shimmer", 0),
+                "formants": {
+                    "f1": fs.get("f1", 0),
+                    "f2": fs.get("f2", 0),
+                    "f3": fs.get("f3", 0),
+                },
+                "pitch_mean": fs.get("pitch_mean", 0),
+            }
+
+        # 점수 보정: -100 .. +100 범위로 클램프 및 소수 한 자리로 반올림
+        def _clamp_scores(raw_scores: Dict) -> Dict:
+            out = {}
+            for k, v in raw_scores.items():
+                try:
+                    num = float(v)
+                except Exception:
+                    num = 0.0
+                num = max(-100.0, min(100.0, num))
+                out[k] = round(num, 1)
+            return out
+
+        normalized_scores = _clamp_scores(result.get("scores", {}))
+
+        # YouTube 추천 비디오 가져오기 (정규화된 점수 사용)
+        # Allow disabling YouTube lookups via DISABLE_YOUTUBE=1 in the environment.
+        youtube_videos = []
+        try:
+            disable_youtube = os.getenv("DISABLE_YOUTUBE", "0").strip() in (
+                "1",
+                "true",
+                "yes",
+            )
+            if not disable_youtube:
+                youtube_videos = get_youtube_service().get_recommended_videos(
+                    normalized_scores, max_results=6
+                )
+                logger.info(f"Retrieved {len(youtube_videos)} YouTube recommendations")
+            else:
+                logger.info("DISABLE_YOUTUBE is set; skipping YouTube recommendations")
+        except Exception as e:
+            logger.error(f"YouTube recommendation error: {str(e)}")
+            youtube_videos = []
+
+        # 응답
+        response = {
             "status": "success",
-            "scores": scores,
-            "gender": scores.get("gender", "unknown"),
-            "potential_high_note": scores.get("potential_high_note", "E5"),
-            "mbti": mbti_result,
-            "analysis_type": "advanced_4axis",
-            "analyzer_backend": analyzer_backend,
+            "analysis_id": analysis_id,
+            "scores": normalized_scores,
+            "confidence": confidence,
+            "confidence_badge": confidence_badge,
+            "confidence_message": confidence_message,
+            "quality": quality,
+            "engine": engine_name,
+            "processing_time": round(processing_time, 2),
+            "warning": warning,
+            "detection": {
+                "environment": detection_result.get("environment", "unknown"),
+                "studio_score": detection_result.get("studio_score", 0.5),
+                "reason": detection_result.get("reason", ""),
+            },
+            "extra_info": extra_info,
+            "youtube_videos": youtube_videos,  # YouTube 추천 비디오 추가
+            "mbti": generate_mbti_from_scores(normalized_scores),  # 하위 호환성
             "success": True,
         }
 
         logger.info(
-            "Analysis complete with backend '%s'. Scores: %s", analyzer_backend, scores
+            f"{engine_name.capitalize()} analysis complete in {processing_time:.2f}s. Scores: {result['scores']}"
         )
-        return result
+        return response
 
     except HTTPException:
+        # let FastAPI handle HTTPExceptions (bad request, etc.) so client gets proper status code
         raise
-    except Exception as exc:  # noqa: BLE001
-        logger.exception(
-            "Error analyzing voice with backend '%s'", analyzer_backend or "unknown"
-        )
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "message": "Failed to analyze voice.",
-                "backend": analyzer_backend,
-                "error": str(exc),
+    except Exception as e:
+        # log full traceback for debugging
+        logger.exception("Unhandled exception during analysis")
+
+        # 실패 시 응답 (keep same shape but include error message)
+        return {
+            "status": "error",
+            "analysis_id": analysis_id,
+            "scores": {
+                "brightness": 0.0,
+                "thickness": 0.0,
+                "loudness": 0.0,
+                "clarity": 0.0,
             },
-        ) from exc
+            "confidence": 0.0,
+            "confidence_badge": "error",
+            "quality": {
+                "lufs": -30.0,
+                "snr": 0.0,
+                "clipping_percent": 0.0,
+                "silence_percent": 100.0,
+            },
+            "engine": "auto",
+            "error": str(e),
+            "reason": "analysis_failed",
+            "success": False,
+        }
 
 
-def generate_advanced_mbti_style(scores: dict) -> dict:
+@app.post("/api/analyze/pro")
+async def analyze_voice_pro(analysis_id: str):
     """
-    4축 점수를 기반으로 MBTI 스타일 결과 생성
+    Pro 엔진 정밀 분석 (< 3초)
+    WavLM 임베딩 + 약한 지도학습
     """
-    brightness = scores["brightness"]
-    thickness = scores["thickness"]
-    adduction = scores["adduction"]
-    spl = scores["spl"]
-
-    # 타입 코드 결정 (기존 호환성 유지)
-    type_code = ""
-    type_code += "B" if brightness > 0 else "D"  # Bright vs Dark
-    type_code += "T" if thickness > 0 else "L"  # Thick vs Light
-    type_code += "C" if adduction > 0 else "R"  # Complete vs Rough
-    type_code += "S" if spl > 0 else "W"  # Strong vs Weak
-
-    # 동적 특성 생성
-    characteristics = []
-    pros = []
-    cons = []
-
-    # 밝기 분석
-    if abs(brightness) > 30:
-        if brightness > 0:
-            characteristics.append("밝고 경쾌한 음색")
-            pros.append("활발한 인상")
-            if brightness > 70:
-                cons.append("때로는 가벼워 보일 수 있음")
-        else:
-            characteristics.append("깊고 성숙한 음색")
-            pros.append("진지한 느낌")
-            if brightness < -70:
-                cons.append("때로는 어둡게 느껴질 수 있음")
-
-    # 두께 분석
-    if abs(thickness) > 30:
-        if thickness > 0:
-            characteristics.append("풍성하고 두꺼운 음색")
-            pros.append("임팩트가 강함")
-            if thickness > 70:
-                cons.append("고음역에서 부담스러울 수 있음")
-        else:
-            characteristics.append("섬세하고 가벼운 음색")
-            pros.append("고음에 유리함")
-            if thickness < -70:
-                cons.append("파워가 부족해 보일 수 있음")
-
-    # 성대 내전 분석 (핵심!)
-    if abs(adduction) > 30:
-        if adduction > 0:
-            characteristics.append("깔끔하고 선명한 발성")
-            pros.append("전달력이 뛰어남")
-            if adduction > 80:
-                pros.append("프로페셔널한 기법")
-        else:
-            characteristics.append("자연스럽고 편안한 발성")
-            pros.append("친근한 느낌")
-            if adduction < -50:
-                cons.append("발성 기법 개선 필요")
-
-    # 음압 분석
-    if abs(spl) > 30:
-        if spl > 0:
-            characteristics.append("파워풀한 음량")
-            pros.append("존재감이 강함")
-            if spl > 70:
-                pros.append("무대 장악력 우수")
-        else:
-            characteristics.append("부드러운 음량")
-            pros.append("섬세한 표현")
-            if spl < -50:
-                cons.append("음량 보강이 필요할 수 있음")
-
-    # 기본값 설정
-    if not characteristics:
-        characteristics = ["균형잡힌 보컬 특성"]
-    if not pros:
-        pros = ["개성 있는 음색", "독특한 매력"]
-    if not cons:
-        cons = ["더 많은 연습으로 발전 가능"]
-
+    # TODO: Pro 엔진 구현 후 활성화
     return {
-        "type_code": type_code,
-        "name": f"{type_code} 보컬 타입",
-        "characteristics": characteristics[:3],
-        "pros": pros[:4],
-        "cons": cons[:3],
-        "description": f"4축 분석 결과 - {type_code} 특성을 가진 보컬 타입",
-        "technical_analysis": {
-            "brightness_level": get_level_description(brightness, "밝기"),
-            "thickness_level": get_level_description(thickness, "두께"),
-            "adduction_level": get_level_description(adduction, "성대내전"),
-            "spl_level": get_level_description(spl, "음압"),
-        },
+        "status": "not_implemented",
+        "message": "Pro engine will be available soon",
+        "analysis_id": analysis_id,
     }
 
 
-def get_level_description(score: float, axis: str) -> str:
-    """점수를 레벨 설명으로 변환"""
-    abs_score = abs(score)
+@app.post("/api/feedback")
+async def save_feedback(feedback: FeedbackData):
+    """
+    사용자 피드백 저장 (골드 라벨)
+    Pro 엔진 학습에 사용
+    """
+    try:
+        # 실제로는 DB에 저장
+        logger.info(f"Feedback received for {feedback.analysis_id}: {feedback.dict()}")
 
-    if abs_score < 20:
-        level = "보통"
-    elif abs_score < 50:
-        level = "중간"
-    elif abs_score < 80:
-        level = "높음"
-    else:
-        level = "매우 높음"
+        # 피드백 저장 로직
+        # db.save_feedback(feedback)
 
-    direction = "+" if score > 0 else "-" if score < 0 else ""
+        return {"status": "success", "message": "Feedback saved successfully"}
 
-    return f"{level} ({direction}{abs_score:.1f})"
+    except Exception as e:
+        logger.error(f"Error saving feedback: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/health")
@@ -307,9 +440,10 @@ async def health_check():
     """서비스 상태 확인"""
     return {
         "status": "healthy",
-        "service": "advanced-vocal-analysis-api",
+        "service": "vocal-analysis-api-v2",
         "version": "2.0.0",
-        "features": ["brightness", "thickness", "adduction", "spl"],
+        "engines": {"lite": "active", "studio": "active", "auto": "active"},
+        "features": ["brightness", "thickness", "loudness", "clarity"],
     }
 
 
@@ -317,34 +451,118 @@ async def health_check():
 async def root():
     """루트 엔드포인트"""
     return {
-        "message": "Advanced Vocal Analysis API v2.0",
-        "description": "고급 4축 보컬 분석 시스템",
+        "message": "Vocal Analysis API v2.0",
+        "description": "폰 녹음 최적화 4축 보컬 분석",
         "axes": {
             "brightness": "음색 밝기 (-100 ~ +100)",
             "thickness": "음색 두께 (-100 ~ +100)",
-            "adduction": "성대 내전 정도 (-100 ~ +100)",
-            "spl": "음압/소리 세기 (-100 ~ +100)",
+            "loudness": "음압/소리 세기 (-100 ~ +100)",
+            "clarity": "선명도/명료성 (-100 ~ +100)",
+        },
+        "endpoints": {
+            "/api/analyze": "자동 엔진 선택 분석 (환경 감지)",
+            "/api/analyze?force_engine=lite": "Lite 엔진 강제 사용 (폰 최적화)",
+            "/api/analyze?force_engine=studio": "Studio 엔진 강제 사용 (고품질)",
+            "/api/analyze/pro": "Pro 엔진 정밀 분석 (준비중)",
+            "/api/feedback": "사용자 피드백 저장",
         },
         "docs": "/docs",
     }
 
 
-@app.get("/api/compare")
-async def compare_systems():
-    """기존 시스템과 비교 정보"""
+def generate_mbti_from_scores(scores: Dict) -> Dict:
+    """
+    4축 점수를 MBTI 스타일로 변환 (하위 호환성)
+    """
+    brightness = scores["brightness"]
+    thickness = scores["thickness"]
+    loudness = scores["loudness"]
+    clarity = scores["clarity"]
+
+    # 타입 코드 생성
+    type_code = ""
+    type_code += "B" if brightness > 0 else "D"  # Bright vs Dark
+    type_code += "T" if thickness > 0 else "L"  # Thick vs Light
+    type_code += "S" if loudness > 0 else "W"  # Strong vs Weak
+    type_code += "C" if clarity > 0 else "R"  # Clear vs Rough
+
+    # 특성 생성
+    characteristics = []
+    pros = []
+    cons = []
+
+    # 밝기
+    if abs(brightness) > 30:
+        if brightness > 0:
+            characteristics.append("밝고 경쾌한 음색")
+            pros.append("활기찬 인상")
+        else:
+            characteristics.append("깊고 차분한 음색")
+            pros.append("안정적인 느낌")
+
+    # 두께
+    if abs(thickness) > 30:
+        if thickness > 0:
+            characteristics.append("풍성하고 두꺼운 음색")
+            pros.append("존재감이 강함")
+        else:
+            characteristics.append("가볍고 민첩한 음색")
+            pros.append("고음 처리 유리")
+
+    # 음압
+    if abs(loudness) > 30:
+        if loudness > 0:
+            characteristics.append("파워풀한 음량")
+            pros.append("무대 장악력")
+        else:
+            characteristics.append("섬세한 음량 컨트롤")
+            pros.append("감성적 표현")
+
+    # 선명도
+    if abs(clarity) > 30:
+        if clarity > 0:
+            characteristics.append("또렷한 발음과 전달력")
+            pros.append("가사 전달 우수")
+            if clarity < -50:
+                cons.append("발성 기법 개선 필요")
+        else:
+            characteristics.append("부드러운 발성")
+            pros.append("편안한 느낌")
+
+    if not characteristics:
+        characteristics = ["균형잡힌 보컬 특성"]
+    if not pros:
+        pros = ["개성 있는 음색", "발전 가능성"]
+    if not cons:
+        cons = ["지속적인 연습 필요"]
+
     return {
-        "legacy_system": {
-            "axes": ["brightness", "thickness", "clarity", "power"],
-            "libraries": ["librosa", "tensorflow"],
-        },
-        "advanced_system": {
-            "axes": ["brightness", "thickness", "adduction", "spl"],
-            "libraries": ["praat-parselmouth", "essentia", "torchaudio", "pyloudnorm"],
-            "improvements": [
-                "성대 내전 정도 정밀 측정",
-                "음성학적으로 검증된 분석",
-                "GPU 가속 처리",
-                "LUFS 기반 객관적 음압 측정",
-            ],
-        },
+        "type_code": type_code,
+        "name": f"{type_code} 보컬 타입",
+        "characteristics": characteristics[:3],
+        "pros": pros[:4],
+        "cons": cons[:3],
+        "description": f"4축 분석 기반 {type_code} 보컬 특성",
     }
+
+
+# 임시 클린업 (24시간 후 데이터 삭제)
+async def cleanup_old_results():
+    """오래된 분석 결과 삭제"""
+    cutoff_time = datetime.now() - timedelta(hours=24)
+    to_delete = []
+
+    for analysis_id, data in analysis_results.items():
+        if data["timestamp"] < cutoff_time:
+            to_delete.append(analysis_id)
+
+    for analysis_id in to_delete:
+        del analysis_results[analysis_id]
+
+    logger.info(f"Cleaned up {len(to_delete)} old results")
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(app, host="0.0.0.0", port=8002)  # Studio 엔진 API v2.0

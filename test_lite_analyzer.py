@@ -105,7 +105,7 @@ def test_analyze_file(file_path):
     if characteristics:
         print(f"   특징: {', '.join(characteristics)}")
 
-    return result
+    assert result is not None
 
 
 if __name__ == "__main__":
