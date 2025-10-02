@@ -1,1 +1,8 @@
-numpy\nscipy\npyworld\nsoundfile\ncrepe\nopenai\ngoogle-api-python-client\npython-dotenv\n
+numpy
+scipy
+pyworld
+soundfile
+crepe
+openai
+google-api-python-client
+python-dotenv
