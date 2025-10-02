@@ -8,6 +8,8 @@ from typing import Dict, List
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.responses import JSONResponse
 
 from analysis import PyWorldVocalAnalyzer
@@ -18,6 +20,9 @@ DEFAULT_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
 ]
+DEFAULT_FRONTEND_DIST = Path(__file__).resolve().parent / "frontend" / "dist"
+FRONTEND_DIST_ENV = os.getenv("SONGLAB_FRONTEND_DIST")
+FRONTEND_DIST_DIR = (Path(FRONTEND_DIST_ENV).expanduser().resolve() if FRONTEND_DIST_ENV else DEFAULT_FRONTEND_DIST)
 
 app = FastAPI(title="SongLab API", version="1.0.0")
 
@@ -106,7 +111,7 @@ async def analyze(file: UploadFile = File(...)) -> JSONResponse:
 
     try:
         query = _recommendation_query(metrics)
-        videos = youtube_client.search_videos(query, max_results=3)
+        videos = youtube_client.search_videos(query, max_results=6)
         recommendations: List[Dict[str, str]] = [
             {
                 "video_id": video.video_id,
@@ -133,3 +138,24 @@ async def analyze(file: UploadFile = File(...)) -> JSONResponse:
 @app.get("/api/health")
 def health_check() -> Dict[str, str]:
     return {"status": "ok"}
+
+
+# Serve built frontend if available.
+if FRONTEND_DIST_DIR.exists():
+    assets_dir = FRONTEND_DIST_DIR / "assets"
+    if assets_dir.exists():
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="songlab-assets")
+
+    @app.get("/", include_in_schema=False)
+    async def serve_index() -> FileResponse:
+        return FileResponse(FRONTEND_DIST_DIR / "index.html")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_spa(full_path: str):
+        if full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="Not Found")
+        candidate = FRONTEND_DIST_DIR / full_path
+        if candidate.is_file():
+            return FileResponse(candidate)
+        return FileResponse(FRONTEND_DIST_DIR / "index.html")
+

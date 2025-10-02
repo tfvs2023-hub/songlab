@@ -17,6 +17,8 @@ from scipy.signal import find_peaks, resample_poly
 class VocalMetrics:
     """Container for the extracted vocal metrics."""
 
+    f0_mean_hz: float
+    f0_median_hz: float
     f1_hz: float
     f2_hz: float
     f3_hz: float
@@ -85,12 +87,18 @@ class PyWorldVocalAnalyzer:
         aperiodicity = pw.d4c(signal, f0, time_axis, sr)
 
         voiced_mask = f0 > 0
+        voiced_f0 = f0[voiced_mask]
+        f0_mean = float(np.mean(voiced_f0)) if voiced_f0.size else float("nan")
+        f0_median = float(np.median(voiced_f0)) if voiced_f0.size else float("nan")
+
         f1, f2, f3 = self._estimate_formants(spectral_envelope, voiced_mask, sr)
         chest_head = self._chest_head_ratio(spectral_envelope, voiced_mask, sr)
         clarity = self._clarity(aperiodicity, voiced_mask)
         power_db = self._power(signal)
 
         return VocalMetrics(
+            f0_mean_hz=f0_mean,
+            f0_median_hz=f0_median,
             f1_hz=f1,
             f2_hz=f2,
             f3_hz=f3,
@@ -208,3 +216,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+

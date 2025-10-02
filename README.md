@@ -26,18 +26,24 @@ OPENAI_API_KEY=발급받은_OpenAI_API키
 `python-dotenv` 덕분에 백엔드 실행 시 자동으로 로드됩니다.
 
 ## 실행 방법
-### 1. 백엔드 (FastAPI)
+### 로컬 개발 (분리 실행)
+- **백엔드 (FastAPI)**
+  ```bash
+  uvicorn server:app --reload
+  ```
+- **프런트엔드 (Vite)**
+  ```bash
+  cd frontend
+  npm run dev
+  ```
+  Vite 개발 서버는 `/api` 요청을 기본적으로 `http://localhost:8000`으로 프록시합니다. 다른 주소를 사용하려면 `VITE_DEV_API_PROXY` 환경 변수를 지정하거나 `.env`에 `VITE_API_BASE_URL`을 설정하세요.
+
+### 통합 실행 (FastAPI 정적 서빙)
 ```bash
-# 루트(songlab)에서
+npm --prefix frontend run build
 uvicorn server:app --reload
 ```
-
-### 2. 프런트엔드 (Vite)
-```bash
-cd frontend
-npm run dev
-```
-기본 API 엔드포인트는 `http://localhost:8000`이며, 프런트 개발 서버는 `http://localhost:5173`에서 열립니다.
+`frontend/dist`가 존재하면 FastAPI가 정적 자산을 루트(`/`)에서 제공하고, `/api/*` 요청은 그대로 API로 전달됩니다. 빌드 디렉터리가 다른 위치라면 `SONGLAB_FRONTEND_DIST` 환경 변수로 경로를 지정하세요.
 
 ## API 요약
 `POST /api/analyze`
@@ -48,3 +54,4 @@ npm run dev
 - 최초 CREPE 실행 시 모델 다운로드로 10초가량 소요될 수 있습니다.
 - OpenAI 호출 시 과금이 발생할 수 있으니 모델/토큰 사용량을 확인하세요.
 - YouTube API는 할당량 제한이 있으므로 일일 호출 횟수를 관리하세요.
+

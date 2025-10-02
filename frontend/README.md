@@ -10,7 +10,7 @@ npm install
 npm run dev
 ```
 
-기본 API 엔드포인트는 `http://localhost:8000`입니다. 다른 서버를 사용하려면 `.env` 파일을 만들어 `VITE_API_BASE_URL`을 설정하세요.
+개발 서버는 `/api` 요청을 기본적으로 `http://localhost:8000`으로 프록시합니다. 다른 주소를 사용하려면 `VITE_DEV_API_PROXY` 환경 변수를 지정하거나 `.env` 파일의 `VITE_API_BASE_URL`로 명시하세요. 프로덕션 빌드에서는 동일한 오리진(`/api`)이 기본값입니다.
 
 ```env
 VITE_API_BASE_URL=https://your-backend.example.com
@@ -29,3 +29,4 @@ npm run build
 ```
 
 생성된 정적 파일은 `frontend/dist`에 위치합니다.
+
