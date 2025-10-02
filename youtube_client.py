@@ -2,8 +2,11 @@
 from __future__ import annotations
 
 import os
+from dotenv import load_dotenv
 from dataclasses import dataclass
 from typing import List, Optional
+
+load_dotenv()
 
 try:
     from googleapiclient.discovery import build

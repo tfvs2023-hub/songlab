@@ -2,7 +2,10 @@
 from __future__ import annotations
 
 import os
+from dotenv import load_dotenv
 from typing import Optional
+
+load_dotenv()
 
 try:
     from openai import OpenAI
