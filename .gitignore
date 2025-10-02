@@ -1,2 +1,15 @@
-frontend_temp/
+# Virtual environments
+.venv/
+venv/
+ENV/
 
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Outputs
+outputs/
+
+# OS files
+.DS_Store
+Thumbs.db
