@@ -1,4 +1,4 @@
-"""Vocal analysis utilities built on pyworld."""
+"""Vocal analysis utilities built on pyworld and CREPE."""
 from __future__ import annotations
 
 import argparse
@@ -6,10 +6,11 @@ from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Dict, List, Tuple
 
-import librosa
+import crepe
 import numpy as np
 import pyworld as pw
-from scipy.signal import find_peaks
+import soundfile as sf
+from scipy.signal import find_peaks, resample_poly
 
 
 @dataclass
@@ -28,15 +29,44 @@ class VocalMetrics:
 
 
 class PyWorldVocalAnalyzer:
-    """Analyze vocal recordings using pyworld-derived features."""
+    """Analyze vocal recordings using pyworld for timbre features and CREPE for F0."""
 
-    def __init__(self, sample_rate: int = 16000, frame_period_ms: float = 5.0) -> None:
+    def __init__(
+        self,
+        sample_rate: int = 16000,
+        frame_period_ms: float = 5.0,
+        confidence_threshold: float = 0.5,
+    ) -> None:
         self.sample_rate = sample_rate
         self.frame_period_ms = frame_period_ms
+        self.confidence_threshold = confidence_threshold
 
     def _load_audio(self, path: Path) -> Tuple[np.ndarray, int]:
-        audio, sr = librosa.load(path, sr=self.sample_rate, mono=True)
-        return audio, sr
+        signal, sr = sf.read(path, always_2d=False)
+        if signal.ndim > 1:
+            signal = np.mean(signal, axis=1)
+        signal = signal.astype(np.float64)
+        # Normalise if needed
+        peak = np.max(np.abs(signal))
+        if peak > 1.0:
+            signal = signal / peak
+        if sr != self.sample_rate:
+            signal = resample_poly(signal, self.sample_rate, sr).astype(np.float64)
+            sr = self.sample_rate
+        return signal, sr
+
+    def _extract_f0_with_crepe(self, signal: np.ndarray, sr: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        step_size = self.frame_period_ms
+        time, frequency, confidence, _ = crepe.predict(
+            signal,
+            sr,
+            step_size=step_size,
+            model_capacity="full",
+            viterbi=True,
+        )
+        voiced_frequency = frequency.copy()
+        voiced_frequency[confidence < self.confidence_threshold] = 0.0
+        return voiced_frequency.astype(np.float64), time.astype(np.float64), confidence.astype(np.float64)
 
     def analyze(self, audio_path: Path) -> VocalMetrics:
         audio_path = Path(audio_path)
@@ -47,21 +77,14 @@ class PyWorldVocalAnalyzer:
         if signal.size == 0:
             raise ValueError("Loaded audio file is empty.")
 
-        f0, time_axis = pw.harvest(
-            signal,
-            fs=sr,
-            frame_period=self.frame_period_ms,
-            f0_floor=65.0,
-            f0_ceil=1100.0,
-        )
-        f0 = pw.stonemask(signal, f0, time_axis, sr)
+        f0, time_axis, confidence = self._extract_f0_with_crepe(signal, sr)
+        if not np.any(f0 > 0):
+            raise ValueError("CREPE did not detect voiced frames; ensure the input contains vocals.")
+
         spectral_envelope = pw.cheaptrick(signal, f0, time_axis, sr)
         aperiodicity = pw.d4c(signal, f0, time_axis, sr)
 
         voiced_mask = f0 > 0
-        if not np.any(voiced_mask):
-            raise ValueError("No voiced frames detected; ensure the input contains vocals.")
-
         f1, f2, f3 = self._estimate_formants(spectral_envelope, voiced_mask, sr)
         chest_head = self._chest_head_ratio(spectral_envelope, voiced_mask, sr)
         clarity = self._clarity(aperiodicity, voiced_mask)
@@ -151,13 +174,13 @@ class PyWorldVocalAnalyzer:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Analyze vocal metrics using pyworld.")
+    parser = argparse.ArgumentParser(description="Analyze vocal metrics using pyworld and CREPE.")
     parser.add_argument("audio", type=Path, help="Path to the input WAV/FLAC file")
     parser.add_argument(
         "--frame-period",
         type=float,
         default=5.0,
-        help="Frame period for pyworld analysis in milliseconds (default: 5.0)",
+        help="Frame period for analysis in milliseconds (default: 5.0)",
     )
     parser.add_argument(
         "--sample-rate",
@@ -165,11 +188,18 @@ def main() -> None:
         default=16000,
         help="Target sample rate for analysis (default: 16000)",
     )
+    parser.add_argument(
+        "--confidence-threshold",
+        type=float,
+        default=0.5,
+        help="Confidence threshold for CREPE voiced detection (default: 0.5)",
+    )
 
     args = parser.parse_args()
     analyzer = PyWorldVocalAnalyzer(
         sample_rate=args.sample_rate,
         frame_period_ms=args.frame_period,
+        confidence_threshold=args.confidence_threshold,
     )
     metrics = analyzer.analyze(args.audio)
     for key, value in metrics.to_dict().items():

@@ -1,1 +1,1 @@
-numpy\nscipy\nlibrosa\npyworld\nsoundfile\n
+numpy\nscipy\npyworld\nsoundfile\ncrepe\n
