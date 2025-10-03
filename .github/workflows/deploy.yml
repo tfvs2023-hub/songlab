@@ -1,0 +1,80 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: ${{ secrets.GCP_REGION }}
+  SERVICE: ${{ secrets.CLOUD_RUN_SERVICE }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GOOGLE_CREDENTIALS }}
+
+      - name: Set up gcloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Ensure required secrets are present
+        run: |
+          test -n "${PROJECT_ID}" || { echo 'Missing GCP_PROJECT_ID secret'; exit 1; }
+          test -n "${REGION}" || { echo 'Missing GCP_REGION secret'; exit 1; }
+          test -n "${SERVICE}" || { echo 'Missing CLOUD_RUN_SERVICE secret'; exit 1; }
+          test -n "${GOOGLE_CREDENTIALS}" || { echo 'Missing GOOGLE_CREDENTIALS secret'; exit 1; }
+        env:
+          PROJECT_ID: ${{ env.PROJECT_ID }}
+          REGION: ${{ env.REGION }}
+          SERVICE: ${{ env.SERVICE }}
+          GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+
+      - name: Build and push container image
+        run: |
+          IMAGE="gcr.io/${PROJECT_ID}/${SERVICE}:${GITHUB_SHA}"
+          gcloud builds submit --tag "${IMAGE}"
+        env:
+          PROJECT_ID: ${{ env.PROJECT_ID }}
+          SERVICE: ${{ env.SERVICE }}
+
+      - name: Deploy to Cloud Run
+        run: |
+          IMAGE="gcr.io/${PROJECT_ID}/${SERVICE}:${GITHUB_SHA}"
+          args=(
+            "--image=${IMAGE}"
+            "--region=${REGION}"
+            "--platform=managed"
+            "--allow-unauthenticated"
+            "--port=8080"
+          )
+          if [ -n "${OPENAI_API_KEY}" ]; then
+            args+=("--set-env-vars=OPENAI_API_KEY=${OPENAI_API_KEY}")
+          fi
+          if [ -n "${YOUTUBE_API_KEY}" ]; then
+            args+=("--set-env-vars=YOUTUBE_API_KEY=${YOUTUBE_API_KEY}")
+          fi
+          if [ -n "${SONGLAB_CORS_ORIGINS}" ]; then
+            args+=("--set-env-vars=SONGLAB_CORS_ORIGINS=${SONGLAB_CORS_ORIGINS}")
+          fi
+          gcloud run deploy "${SERVICE}" "${args[@]}"
+        env:
+          PROJECT_ID: ${{ env.PROJECT_ID }}
+          SERVICE: ${{ env.SERVICE }}
+          REGION: ${{ env.REGION }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          SONGLAB_CORS_ORIGINS: ${{ secrets.SONGLAB_CORS_ORIGINS }}

@@ -45,6 +45,18 @@ uvicorn server:app --reload
 ```
 `frontend/dist`가 존재하면 FastAPI가 정적 자산을 루트(`/`)에서 제공하고, `/api/*` 요청은 그대로 API로 전달됩니다. 빌드 디렉터리가 다른 위치라면 `SONGLAB_FRONTEND_DIST` 환경 변수로 경로를 지정하세요.
 
+## 배포 (Google Cloud Run + GitHub Actions)
+1. Google Cloud에서 Cloud Run, Cloud Build, Artifact Registry API를 활성화합니다.
+2. Cloud Run용 서비스 계정을 만들고 `roles/run.admin`, `roles/artifactregistry.admin`, `roles/iam.serviceAccountUser` 권한을 부여한 뒤 키(JSON)를 발급합니다.
+3. GitHub 저장소의 Settings → Secrets에서 다음 키를 등록합니다.
+   - `GCP_PROJECT_ID`, `GCP_REGION`, `CLOUD_RUN_SERVICE`
+   - `GOOGLE_CREDENTIALS` (2단계에서 발급한 서비스 계정 JSON)
+   - `OPENAI_API_KEY`, `YOUTUBE_API_KEY`, 필요 시 `SONGLAB_CORS_ORIGINS`
+4. `main` 브랜치에 push하거나 Actions에서 `Deploy to Cloud Run` 워크플로를 수동 실행하면 Dockerfile 기반 컨테이너를 빌드해 Cloud Run으로 배포합니다.
+5. Cloud Run 배포 후 서비스의 환경 변수(`OPENAI_API_KEY`, `YOUTUBE_API_KEY` 등)가 올바르게 설정됐는지 확인하고, 도메인에 맞춰 CORS 원본을 조정하세요.
+
+멀티 스테이지 `Dockerfile`이 프런트엔드를 먼저 빌드한 뒤 FastAPI 백엔드를 8080 포트에서 구동합니다. `crepe`/`pyworld` 의존성 설치로 최초 빌드가 10~15분까지 걸릴 수 있습니다.
+
 ## API 요약
 `POST /api/analyze`
 - 입력: `multipart/form-data`의 `file` 필드(음성 파일)

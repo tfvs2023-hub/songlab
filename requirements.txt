@@ -3,6 +3,9 @@ scipy
 pyworld
 soundfile
 crepe
+python-dotenv
 openai
 google-api-python-client
-python-dotenv
+fastapi
+uvicorn[standard]
+python-multipart
