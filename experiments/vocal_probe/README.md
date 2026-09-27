@@ -8,7 +8,11 @@ VocalSet의 10가지 창법(belt, breathy, inhaled, lip_trill, spoken, straight,
 | MERT | `m-a-p/MERT-v1-95M` | 원본 파형 24kHz | 5초 |
 | AST | `MIT/ast-finetuned-audioset-10-10-0.4593` | log-mel 16kHz | 10초 |
 
-## 준비
+## 가장 쉬운 실행: Google Colab
+[`colab_compare.ipynb`](https://colab.research.google.com/github/tfvs2023-hub/songlab/blob/claude/spectrogram-reading-model-itsg91/experiments/vocal_probe/colab_compare.ipynb)를 열고
+T4 GPU 런타임으로 `모두 실행`하면 다운로드 → 추출 → 평가까지 자동으로 진행됩니다.
+
+## 준비 (로컬)
 ```bash
 pip install -r experiments/vocal_probe/requirements.txt
 ```

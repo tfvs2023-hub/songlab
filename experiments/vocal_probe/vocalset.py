@@ -44,19 +44,23 @@ def index_vocalset(root: Path) -> List[Clip]:
     """Collect (path, singer, technique) for every usable VocalSet wav under ``root``.
 
     ``root`` should be the ``FULL`` directory of VocalSet (``FULL/<singer>/<context>/<technique>/*.wav``).
-    The singer is taken from the first path component that looks like ``f1``/``m11`` and the
-    technique from the wav's parent directory; clips outside :data:`TECHNIQUES` are skipped.
+    The singer is taken from the first path component that looks like ``f1``/``m11`` (falling back to
+    the file-name prefix) and the technique from the wav's parent directory; clips outside
+    :data:`TECHNIQUES` are skipped. Files that appear more than once (the release zips also ship
+    by-technique / by-vowel copies) are kept only once, keyed by file name.
     """
     root = Path(root)
     clips: List[Clip] = []
+    seen = set()
     for path in sorted(root.rglob("*.wav")):
-        if path.name.startswith("._"):
+        if path.name.startswith("._") or path.name.lower() in seen:
             continue
-        parts = path.relative_to(root).parts
+        parts = path.relative_to(root).parts[:-1] + (path.name.split("_")[0],)
         singer = next((p.lower() for p in parts if _SINGER_RE.match(p.lower())), None)
         technique = _normalise(path.parent.name)
         if singer is None or technique not in TECHNIQUES:
             continue
+        seen.add(path.name.lower())
         clips.append(Clip(path=path, singer=singer, technique=technique))
     if not clips:
         raise FileNotFoundError(f"No VocalSet clips found under {root}. Point --data-root at VocalSet/FULL.")
